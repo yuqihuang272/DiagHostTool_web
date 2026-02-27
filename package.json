@@ -2,11 +2,20 @@
   "name": "comtest",
   "version": "1.0.0",
   "main": "index.js",
+  "bin": {
+    "comtest-cli": "./cli/index.js"
+  },
+  "workspaces": [
+    "client",
+    "server",
+    "cli"
+  ],
   "scripts": {
     "server": "cd server && npm start",
     "client": "cd client && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "cli": "node cli/index.js"
   },
   "keywords": [],
   "author": "",

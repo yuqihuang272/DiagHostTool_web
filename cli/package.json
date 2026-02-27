@@ -1,0 +1,26 @@
+{
+  "name": "comtest-cli",
+  "version": "1.0.0",
+  "description": "CVTE device serial port testing CLI",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "comtest-cli": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.0.0",
+    "serialport": "^12.0.0"
+  },
+  "keywords": [
+    "serial",
+    "cli",
+    "cvte",
+    "testing"
+  ],
+  "author": "",
+  "license": "ISC"
+}

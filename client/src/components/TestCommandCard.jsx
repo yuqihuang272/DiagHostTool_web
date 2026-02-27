@@ -24,9 +24,10 @@ export const TestCommandCard = ({
   // Default parser: convert buffer to HEX string
   const defaultParser = useCallback((data) => {
     const bytes = new Uint8Array(data);
-    return Array.from(bytes)
+    const hexStr = Array.from(bytes)
       .map(b => b.toString(16).padStart(2, '0').toUpperCase())
       .join(' ');
+    return { success: true, display: hexStr };
   }, []);
 
   const executeCommand = useCallback(() => {
@@ -50,10 +51,15 @@ export const TestCommandCard = ({
       const parser = parseResponse || defaultParser;
       try {
         const parsed = parser(data);
-        setResult(parsed);
-        setStatus('success');
+        // Handle both old string format and new object format
+        if (typeof parsed === 'string') {
+          setResult({ display: parsed, success: true });
+        } else {
+          setResult(parsed);
+        }
+        setStatus(parsed.success === false ? 'error' : 'success');
       } catch (err) {
-        setResult(`Parse error: ${err.message}`);
+        setResult({ display: `Parse error: ${err.message}`, success: false });
         setStatus('error');
       }
       cleanup();
@@ -123,13 +129,21 @@ export const TestCommandCard = ({
       {/* Result display */}
       {result && (
         <div className={clsx(
-          "rounded px-3 py-2 mb-3 font-mono text-sm",
+          "rounded px-3 py-2 mb-3 text-sm",
+          result.success === false ? "bg-red-50 text-red-700" :
           status === 'success' ? "bg-green-50 text-green-700" :
           status === 'timeout' ? "bg-orange-50 text-orange-700" :
-          "bg-red-50 text-red-700"
+          "bg-gray-50 text-gray-700"
         )}>
-          <span className="text-gray-400 mr-2">RES:</span>
-          {result}
+          <div className="flex items-start gap-2">
+            <span className="text-gray-400 shrink-0">RES:</span>
+            <span className={clsx(
+              "font-mono break-all",
+              result.success === false ? "text-red-600" : "text-green-700"
+            )}>
+              {result.display || result}
+            </span>
+          </div>
         </div>
       )}
 

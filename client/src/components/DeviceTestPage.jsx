@@ -1,122 +1,105 @@
 import React from 'react';
 import { TestCommandCard } from './TestCommandCard';
 import { Cpu } from 'lucide-react';
-
-/**
- * Protocol format:
- * [0] FF - Frame header
- * [1] 33 - Device identifier
- * [2] XX - Total packet length
- * [3] 03 - Command type
- * [4] XX - Response command ID (request ID + 1)
- * [5..n-1] - Payload data (ASCII encoded)
- * [n] XX - Checksum
- */
-
-/**
- * Extract payload from protocol response and convert to ASCII string
- * @param {ArrayBuffer} data - Raw response data
- * @returns {string} Parsed ASCII string
- */
-const parseAsciiPayload = (data) => {
-  const bytes = new Uint8Array(data);
-  // Payload starts at index 5, ends before last byte (checksum)
-  const payload = bytes.slice(5, bytes.length - 1);
-  // Convert ASCII bytes to string
-  return String.fromCharCode(...payload);
-};
-
-/**
- * Extract payload and return as HEX string (for non-ASCII data)
- * @param {ArrayBuffer} data - Raw response data
- * @returns {string} HEX string of payload
- */
-const parseHexPayload = (data) => {
-  const bytes = new Uint8Array(data);
-  const payload = bytes.slice(5, bytes.length - 1);
-  return Array.from(payload)
-    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-    .join(' ');
-};
-
-/**
- * Return full raw response as HEX string (for debugging)
- * @param {ArrayBuffer} data - Raw response data
- * @returns {string} Full HEX string
- */
-const parseRawHex = (data) => {
-  const bytes = new Uint8Array(data);
-  return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-    .join(' ');
-};
+import { COMMANDS, buildSetSourceCommand, PROTOCOL } from '../utils/cvteProtocol';
+import {
+  parseChecksumResponse,
+  parseIpResponse,
+  parseWifiResponse,
+  parseBluetoothResponse,
+  parseMacResponse,
+  parseSetSourceResponse,
+} from '../utils/responseParsers';
 
 /**
  * Device Test Page - Contains all device testing functions
  * Each function is represented as a TestCommandCard
+ *
+ * Based on CVTE Factory Auto Test Serial Communication Protocol v2.1.51
  */
 export const DeviceTestPage = ({ isConnected }) => {
-  // Command configurations - easy to extend
+  // Command configurations based on CVTE protocol
   const commands = [
     {
       id: 'checksum',
-      title: '获取 Checksum',
-      description: '获取设备固件校验码',
-      command: 'FF 33 06 03 12 E5',
+      title: 'Get Checksum',
+      description: 'Get device firmware checksum',
+      command: COMMANDS.GET_CHECKSUM,
       timeout: 3000,
       enabled: true,
-      parseResponse: parseAsciiPayload,
+      parseResponse: parseChecksumResponse,
     },
     {
       id: 'ip',
-      title: '获取 IP 地址',
-      description: '读取设备当前 IP 地址',
-      command: 'FF 33 06 03 31 C6',
+      title: 'Get IP Address',
+      description: 'Read device current IP address',
+      command: COMMANDS.GET_IP,
       timeout: 3000,
       enabled: true,
-      parseResponse: parseAsciiPayload,
+      parseResponse: parseIpResponse,
     },
     {
       id: 'wifi',
-      title: 'WiFi 测试',
-      description: '获取 WiFi 功能测试结果',
-      command: 'FF 33 06 03 31 C6',
+      title: 'WiFi Test',
+      description: 'Check WiFi module status',
+      command: COMMANDS.GET_WIFI_STATUS,
       timeout: 5000,
       enabled: true,
-      parseResponse: parseAsciiPayload,
+      parseResponse: parseWifiResponse,
     },
     {
-      id: 'atv',
-      title: '切换 ATV',
-      description: '切换到模拟电视信号源',
-      command: 'FF 33 07 03 16 0F D1',
-      timeout: 3000,
+      id: 'bluetooth',
+      title: 'Bluetooth Test',
+      description: 'Check Bluetooth module status',
+      command: COMMANDS.GET_BLUETOOTH_STATUS,
+      timeout: 5000,
       enabled: true,
-      parseResponse: parseHexPayload,
-    },
-    {
-      id: 'dtv',
-      title: '切换 DTV',
-      description: '切换到数字电视信号源',
-      command: 'XX XX XX',
-      timeout: 3000,
-      enabled: false, // Not implemented yet
+      parseResponse: parseBluetoothResponse,
     },
     {
       id: 'mac',
-      title: '获取 MAC 地址',
-      description: '读取设备网络 MAC 地址',
-      command: 'XX XX XX',
+      title: 'Get MAC Address',
+      description: 'Read device network MAC address',
+      command: COMMANDS.GET_MAC_ADDR,
       timeout: 3000,
-      enabled: false, // Not implemented yet
+      enabled: true,
+      parseResponse: parseMacResponse,
     },
     {
-      id: 'bt',
-      title: '蓝牙测试',
-      description: '执行蓝牙功能测试',
-      command: 'XX XX XX',
-      timeout: 5000,
-      enabled: false, // Not implemented yet
+      id: 'atv',
+      title: 'Switch to ATV',
+      description: 'Switch to analog TV source',
+      command: COMMANDS.SET_ATV,
+      timeout: 3000,
+      enabled: true,
+      parseResponse: (data) => parseSetSourceResponse(data, 'ATV'),
+    },
+    {
+      id: 'dtv',
+      title: 'Switch to DTV',
+      description: 'Switch to digital TV source',
+      command: COMMANDS.SET_DTV,
+      timeout: 3000,
+      enabled: true,
+      parseResponse: (data) => parseSetSourceResponse(data, 'DTV'),
+    },
+    {
+      id: 'hdmi1',
+      title: 'Switch to HDMI1',
+      description: 'Switch to HDMI1 input',
+      command: COMMANDS.SET_HDMI1,
+      timeout: 3000,
+      enabled: true,
+      parseResponse: (data) => parseSetSourceResponse(data, 'HDMI1'),
+    },
+    {
+      id: 'hdmi2',
+      title: 'Switch to HDMI2',
+      description: 'Switch to HDMI2 input',
+      command: COMMANDS.SET_HDMI2,
+      timeout: 3000,
+      enabled: true,
+      parseResponse: (data) => parseSetSourceResponse(data, 'HDMI2'),
     },
   ];
 
@@ -125,10 +108,17 @@ export const DeviceTestPage = ({ isConnected }) => {
       {/* Page Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
         <Cpu size={24} className="text-blue-500" />
-        <h1 className="text-xl font-semibold text-gray-800">设备测试</h1>
+        <h1 className="text-xl font-semibold text-gray-800">Device Test</h1>
         <span className={`ml-auto px-2 py-1 rounded text-sm ${isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-          {isConnected ? '已连接' : '未连接'}
+          {isConnected ? 'Connected' : 'Disconnected'}
         </span>
+      </div>
+
+      {/* Protocol Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-700">
+        <strong>Protocol:</strong> CVTE Factory Auto Test v2.1.51 |
+        <strong className="ml-2">Baud Rate:</strong> 115200 |
+        <strong className="ml-2">Format:</strong> 8N1
       </div>
 
       {/* Command Cards Grid */}
@@ -151,7 +141,7 @@ export const DeviceTestPage = ({ isConnected }) => {
 
       {/* Footer hint */}
       <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-200">
-        灰色卡片表示功能待实现，后续可通过添加命令配置扩展
+        Click "Execute" to send command. Results will be displayed in human-readable format.
       </div>
     </div>
   );
