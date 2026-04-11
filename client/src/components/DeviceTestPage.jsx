@@ -1,147 +1,163 @@
-import React from 'react';
-import { TestCommandCard } from './TestCommandCard';
-import { Cpu } from 'lucide-react';
-import { COMMANDS, buildSetSourceCommand, PROTOCOL } from '../utils/cvteProtocol';
+import React, { useState } from 'react';
+import { CompactCommandCard } from './CompactCommandCard';
+import { SourceSelector, GetCurrentSource } from './SourceSelector';
+import { Cpu, Info, TestTube, Tv } from 'lucide-react';
+import { COMMANDS } from '../utils/cvteProtocol';
 import {
   parseChecksumResponse,
   parseIpResponse,
   parseWifiResponse,
   parseBluetoothResponse,
   parseMacResponse,
-  parseSetSourceResponse,
 } from '../utils/responseParsers';
+import { clsx } from 'clsx';
 
 /**
- * Device Test Page - Contains all device testing functions
- * Each function is represented as a TestCommandCard
+ * Device Test Page - Optimized with tabs and compact layout
+ *
+ * Tabs:
+ * - Info Query (信息查询): Checksum, IP, MAC
+ * - Module Test (模块测试): WiFi, Bluetooth
+ * - Source Control (信源控制): Switch source, Get current source
  *
  * Based on CVTE Factory Auto Test Serial Communication Protocol v2.1.51
  */
 export const DeviceTestPage = ({ isConnected }) => {
-  // Command configurations based on CVTE protocol
-  const commands = [
+  const [activeTab, setActiveTab] = useState('info');
+
+  const tabs = [
+    { id: 'info', label: 'Info Query', labelCN: '信息查询', icon: Info },
+    { id: 'test', label: 'Module Test', labelCN: '模块测试', icon: TestTube },
+    { id: 'source', label: 'Source Control', labelCN: '信源控制', icon: Tv },
+  ];
+
+  // Info query commands
+  const infoCommands = [
     {
       id: 'checksum',
-      title: 'Get Checksum',
-      description: 'Get device firmware checksum',
+      title: 'Checksum',
       command: COMMANDS.GET_CHECKSUM,
       timeout: 3000,
-      enabled: true,
       parseResponse: parseChecksumResponse,
     },
     {
       id: 'ip',
-      title: 'Get IP Address',
-      description: 'Read device current IP address',
+      title: 'IP Address',
       command: COMMANDS.GET_IP,
       timeout: 3000,
-      enabled: true,
       parseResponse: parseIpResponse,
     },
     {
+      id: 'mac',
+      title: 'MAC Address',
+      command: COMMANDS.GET_MAC_ADDR,
+      timeout: 3000,
+      parseResponse: parseMacResponse,
+    },
+  ];
+
+  // Module test commands
+  const testCommands = [
+    {
       id: 'wifi',
       title: 'WiFi Test',
-      description: 'Check WiFi module status',
       command: COMMANDS.GET_WIFI_STATUS,
       timeout: 5000,
-      enabled: true,
       parseResponse: parseWifiResponse,
     },
     {
       id: 'bluetooth',
       title: 'Bluetooth Test',
-      description: 'Check Bluetooth module status',
       command: COMMANDS.GET_BLUETOOTH_STATUS,
       timeout: 5000,
-      enabled: true,
       parseResponse: parseBluetoothResponse,
-    },
-    {
-      id: 'mac',
-      title: 'Get MAC Address',
-      description: 'Read device network MAC address',
-      command: COMMANDS.GET_MAC_ADDR,
-      timeout: 3000,
-      enabled: true,
-      parseResponse: parseMacResponse,
-    },
-    {
-      id: 'atv',
-      title: 'Switch to ATV',
-      description: 'Switch to analog TV source',
-      command: COMMANDS.SET_ATV,
-      timeout: 3000,
-      enabled: true,
-      parseResponse: (data) => parseSetSourceResponse(data, 'ATV'),
-    },
-    {
-      id: 'dtv',
-      title: 'Switch to DTV',
-      description: 'Switch to digital TV source',
-      command: COMMANDS.SET_DTV,
-      timeout: 3000,
-      enabled: true,
-      parseResponse: (data) => parseSetSourceResponse(data, 'DTV'),
-    },
-    {
-      id: 'hdmi1',
-      title: 'Switch to HDMI1',
-      description: 'Switch to HDMI1 input',
-      command: COMMANDS.SET_HDMI1,
-      timeout: 3000,
-      enabled: true,
-      parseResponse: (data) => parseSetSourceResponse(data, 'HDMI1'),
-    },
-    {
-      id: 'hdmi2',
-      title: 'Switch to HDMI2',
-      description: 'Switch to HDMI2 input',
-      command: COMMANDS.SET_HDMI2,
-      timeout: 3000,
-      enabled: true,
-      parseResponse: (data) => parseSetSourceResponse(data, 'HDMI2'),
     },
   ];
 
   return (
-    <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
-      {/* Page Header */}
-      <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
-        <Cpu size={24} className="text-blue-500" />
-        <h1 className="text-xl font-semibold text-gray-800">Device Test</h1>
-        <span className={`ml-auto px-2 py-1 rounded text-sm ${isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+    <div className="flex-1 flex flex-col p-2 gap-2 overflow-hidden">
+      {/* Page Header - Compact */}
+      <div className="flex items-center gap-2 pb-1.5 border-b border-gray-200">
+        <Cpu size={20} className="text-blue-500" />
+        <h1 className="text-lg font-semibold text-gray-800">Device Test</h1>
+        <span className={clsx(
+          "ml-auto px-2 py-0.5 rounded text-xs font-medium",
+          isConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+        )}>
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
 
-      {/* Protocol Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm text-blue-700">
-        <strong>Protocol:</strong> CVTE Factory Auto Test v2.1.51 |
-        <strong className="ml-2">Baud Rate:</strong> 115200 |
-        <strong className="ml-2">Format:</strong> 8N1
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200">
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={clsx(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition border-b-2 -mb-px",
+                activeTab === tab.id
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              )}
+            >
+              <TabIcon size={14} />
+              <span>{tab.labelCN}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Command Cards Grid */}
+      {/* Tab Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {commands.map((cmd) => (
-            <TestCommandCard
-              key={cmd.id}
-              title={cmd.title}
-              description={cmd.description}
-              command={cmd.command}
-              timeout={cmd.timeout}
-              enabled={cmd.enabled}
-              parseResponse={cmd.parseResponse}
-              isConnected={isConnected}
-            />
-          ))}
-        </div>
+        {/* Info Query Tab */}
+        {activeTab === 'info' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {infoCommands.map((cmd) => (
+              <CompactCommandCard
+                key={cmd.id}
+                title={cmd.title}
+                command={cmd.command}
+                timeout={cmd.timeout}
+                parseResponse={cmd.parseResponse}
+                isConnected={isConnected}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Module Test Tab */}
+        {activeTab === 'test' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {testCommands.map((cmd) => (
+              <CompactCommandCard
+                key={cmd.id}
+                title={cmd.title}
+                command={cmd.command}
+                timeout={cmd.timeout}
+                parseResponse={cmd.parseResponse}
+                isConnected={isConnected}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Source Control Tab */}
+        {activeTab === 'source' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <SourceSelector isConnected={isConnected} />
+            <GetCurrentSource isConnected={isConnected} />
+          </div>
+        )}
       </div>
 
-      {/* Footer hint */}
-      <div className="text-xs text-gray-400 text-center pt-2 border-t border-gray-200">
-        Click "Execute" to send command. Results will be displayed in human-readable format.
+      {/* Protocol Info Bar - Compact */}
+      <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1 text-xs text-blue-700 flex items-center gap-3">
+        <span><strong>Protocol:</strong> CVTE v2.1.51</span>
+        <span><strong>Baud:</strong> 115200</span>
+        <span><strong>Format:</strong> 8N1</span>
       </div>
     </div>
   );
