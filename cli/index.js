@@ -19,6 +19,8 @@ import {
   formatResult,
   formatResultJson,
 } from './commands.js';
+import { executeBurnCommand } from './burnCommand.js';
+import { FILE_TYPE_NAMES } from '../shared/fileTransfer.js';
 
 const program = new Command();
 
@@ -176,6 +178,49 @@ program
     process.exit(result.success ? 0 : 1);
   });
 
+// burn command
+program
+  .command('burn <type> <file>')
+  .description('Burn key file to device (hdcp14, hdcp22)')
+  .action(async (type, file) => {
+    const options = program.opts();
+
+    if (!options.port) {
+      console.error(chalk.red('Error: Serial port is required. Use -p or --port option.'));
+      process.exit(1);
+    }
+
+    const keyType = type.toLowerCase();
+    if (!FILE_TYPE_NAMES[keyType]) {
+      console.error(chalk.red(`Error: Unknown key type: ${type}. Valid: ${Object.keys(FILE_TYPE_NAMES).join(', ')}`));
+      process.exit(1);
+    }
+
+    const result = await executeBurnCommand(
+      options.port,
+      parseInt(options.baud),
+      keyType,
+      file,
+      {
+        timeout: parseInt(options.timeout),
+        json: options.json,
+        debug: options.debug,
+      }
+    );
+
+    if (options.json) {
+      console.log(JSON.stringify(result.success ? { success: true, ...result.data } : { success: false, error: result.error }, null, 2));
+    } else {
+      if (result.success) {
+        console.log(`${chalk.green('✓')} ${type} key burned successfully (${result.data.fileSize} bytes, ${result.data.packets} packets)`);
+      } else {
+        console.log(`${chalk.red('✗')} Error: ${result.error}`);
+      }
+    }
+
+    process.exit(result.success ? 0 : 1);
+  });
+
 // help command to show available commands
 program
   .command('commands')
@@ -195,6 +240,11 @@ program
 
     console.log(chalk.cyan('Test commands:'));
     commands.test.forEach((cmd) => console.log(`  test ${cmd}`));
+    console.log();
+
+    console.log(chalk.cyan('Burn commands:'));
+    console.log('  burn <type> <file>');
+    console.log(chalk.gray(`  Valid types: ${Object.keys(FILE_TYPE_NAMES).join(', ')}`));
   });
 
 // Parse arguments

@@ -91,6 +91,62 @@ export class SerialClient {
   }
 
   /**
+   * Send raw buffer without waiting for response
+   * @param {Buffer} buffer - Data to send
+   * @returns {Promise<void>}
+   */
+  async sendRaw(buffer) {
+    return new Promise((resolve, reject) => {
+      if (!this.port || !this.port.isOpen) {
+        reject(new Error('Port is not open'));
+        return;
+      }
+      this.port.write(buffer, (err) => {
+        if (err) {
+          reject(new Error(`Failed to send: ${err.message}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Wait for a complete protocol response packet
+   * @param {number} timeout - Timeout in milliseconds
+   * @returns {Promise<Buffer>} Complete packet
+   */
+  async waitForResponse(timeout = 3000) {
+    return new Promise((resolve, reject) => {
+      if (!this.port || !this.port.isOpen) {
+        reject(new Error('Port is not open'));
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        this.port.off('data', onData);
+        reject(new Error(`Response timeout (${timeout}ms)`));
+      }, timeout);
+
+      this.buffer = Buffer.alloc(0);
+
+      const onData = (data) => {
+        this.buffer = Buffer.concat([this.buffer, data]);
+        if (this.buffer.length >= 3) {
+          const packetLength = this.buffer[2];
+          if (this.buffer.length >= packetLength) {
+            clearTimeout(timer);
+            this.port.off('data', onData);
+            resolve(this.buffer.slice(0, packetLength));
+          }
+        }
+      };
+
+      this.port.on('data', onData);
+    });
+  }
+
+  /**
    * Disconnect from serial port
    * @returns {Promise<void>}
    */
