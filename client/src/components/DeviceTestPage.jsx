@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CompactCommandCard } from './CompactCommandCard';
 import { SourceSelector, GetCurrentSource } from './SourceSelector';
-import { Cpu, Info, TestTube, Tv } from 'lucide-react';
+import { KeyBurnCard } from './KeyBurnCard';
+import { Cpu, Info, TestTube, Tv, Key } from 'lucide-react';
 import { COMMANDS } from '../utils/cvteProtocol';
 import {
   parseChecksumResponse,
@@ -29,6 +30,7 @@ export const DeviceTestPage = ({ isConnected }) => {
     { id: 'info', label: 'Info Query', labelCN: '信息查询', icon: Info },
     { id: 'test', label: 'Module Test', labelCN: '模块测试', icon: TestTube },
     { id: 'source', label: 'Source Control', labelCN: '信源控制', icon: Tv },
+    { id: 'burn', label: 'Key Burn', labelCN: '密钥烧录', icon: Key },
   ];
 
   // Info query commands
@@ -149,6 +151,13 @@ export const DeviceTestPage = ({ isConnected }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <SourceSelector isConnected={isConnected} />
             <GetCurrentSource isConnected={isConnected} />
+          </div>
+        )}
+
+        {/* Key Burn Tab */}
+        {activeTab === 'burn' && (
+          <div className="grid grid-cols-1 gap-2">
+            <KeyBurnCard isConnected={isConnected} />
           </div>
         )}
       </div>

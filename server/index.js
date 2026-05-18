@@ -5,6 +5,7 @@ const { SerialPort } = require('serialport');
 const cors = require('cors');
 
 const path = require('path');
+const { fileCrc16, buildStartSendFile, buildSendFileData, buildSendFileCrc } = require('./burnProtocol.js');
 
 const app = express();
 app.use(cors());
@@ -125,6 +126,124 @@ io.on('connection', (socket) => {
       });
     } else {
       socket.emit('error', "Port not open");
+    }
+  });
+
+  // Burn key via file transfer protocol
+  socket.on('burn-key', async (payload) => {
+    if (!activePort || !activePort.isOpen) {
+      socket.emit('burn-result', { success: false, error: 'Port not open' });
+      return;
+    }
+
+    const { keyType, fileData, fileName } = payload;
+    const FILE_TYPE_MAP = { hdcp14: 1, hdcp22: 4, ciplus: 2, widevine: 5, esn: 6 };
+    const fileType = FILE_TYPE_MAP[keyType];
+    if (!fileType) {
+      socket.emit('burn-result', { success: false, error: `Unknown key type: ${keyType}` });
+      return;
+    }
+
+    const fileBuf = Buffer.from(fileData);
+    const fileSize = fileBuf.length;
+    const crc = fileCrc16(fileBuf);
+    const fileId = (Math.random() * 0xFFFFFFFF) >>> 0;
+
+    socket.emit('burn-progress', { percent: 0, message: 'Starting...' });
+
+    const sendAndWait = (data, timeout = 10000) => {
+      return new Promise((resolve, reject) => {
+        let buf = Buffer.alloc(0);
+        const timer = setTimeout(() => {
+          activePort.off('data', onData);
+          reject(new Error('Timeout'));
+        }, timeout);
+        const onData = (chunk) => {
+          buf = Buffer.concat([buf, chunk]);
+          if (buf.length >= 3 && buf.length >= buf[2]) {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            resolve(buf.slice(0, buf[2]));
+          }
+        };
+        activePort.on('data', onData);
+        activePort.write(Buffer.from(data));
+      });
+    };
+
+    try {
+      // Step 1: START_SEND_FILE
+      const startCmd = buildStartSendFile(fileId, fileSize, fileType);
+      const startResp = await sendAndWait(startCmd);
+      if (startResp[4] !== 0x41) {
+        socket.emit('burn-result', { success: false, error: 'Device rejected start command' });
+        return;
+      }
+      if (startResp[5] !== 0) {
+        socket.emit('burn-result', { success: false, error: startResp[5] === 1 ? 'Key already exists' : 'Device rejected file type' });
+        return;
+      }
+      const maxPacketLength = (startResp[6] << 8) | startResp[7];
+      const dataPerPacket = maxPacketLength - 14;
+      const totalPackets = Math.ceil(fileSize / dataPerPacket);
+
+      socket.emit('burn-progress', { percent: 5, message: `Sending ${totalPackets} packets...` });
+
+      // Step 2: Send data packets (1-based index)
+      for (let i = 0; i < totalPackets; i++) {
+        const offset = i * dataPerPacket;
+        const chunk = fileBuf.slice(offset, offset + dataPerPacket);
+        const pktCmd = buildSendFileData(i + 1, totalPackets, Array.from(chunk));
+        const ackResp = await sendAndWait(pktCmd);
+        if (ackResp[5] !== 0) {
+          socket.emit('burn-result', { success: false, error: `Packet ${i + 1} ACK error` });
+          return;
+        }
+        const pct = Math.round(5 + ((i + 1) / totalPackets) * 80);
+        socket.emit('burn-progress', { percent: pct, message: `Packet ${i + 1}/${totalPackets}` });
+      }
+
+      // Step 3: Send CRC and wait for final status
+      socket.emit('burn-progress', { percent: 90, message: 'Verifying CRC...' });
+      const crcCmd = buildSendFileCrc(crc);
+
+      const waitForPacket = (timeout = 15000) => {
+        return new Promise((resolve, reject) => {
+          let buf = Buffer.alloc(0);
+          const timer = setTimeout(() => { activePort.off('data', onData); reject(new Error('Timeout')); }, timeout);
+          const onData = (chunk) => {
+            buf = Buffer.concat([buf, chunk]);
+            if (buf.length >= 3 && buf.length >= buf[2]) {
+              clearTimeout(timer);
+              activePort.off('data', onData);
+              resolve(buf.slice(0, buf[2]));
+            }
+          };
+          activePort.on('data', onData);
+        });
+      };
+
+      activePort.write(Buffer.from(crcCmd));
+
+      let finalStatus = null;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const resp = await waitForPacket(15000);
+        if (resp[4] === 0x44) {
+          finalStatus = resp[5];
+          break;
+        }
+      }
+
+      if (finalStatus === null) {
+        socket.emit('burn-result', { success: false, error: 'Timeout waiting for result' });
+      } else if (finalStatus === 0) {
+        socket.emit('burn-progress', { percent: 100, message: 'Done!' });
+        socket.emit('burn-result', { success: true, packets: totalPackets, crc: '0x' + crc.toString(16).padStart(4, '0') });
+      } else {
+        socket.emit('burn-result', { success: false, error: finalStatus === 1 ? 'CRC error' : 'Flash write error' });
+      }
+    } catch (err) {
+      socket.emit('burn-result', { success: false, error: err.message });
     }
   });
 
