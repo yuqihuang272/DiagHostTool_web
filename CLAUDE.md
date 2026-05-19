@@ -159,31 +159,34 @@ DeviceTestPage 使用自定义协议格式：
 # 列出可用串口
 node cli/index.js list-ports
 
+# 设置串口变量（方便后续复用）
+export uartport=/dev/tty.usbserial-gggggggg1
+
 # 获取设备信息
-node cli/index.js -p /dev/ttyUSB0 get checksum
-node cli/index.js -p /dev/ttyUSB0 get ip
-node cli/index.js -p /dev/ttyUSB0 get mac
-node cli/index.js -p /dev/ttyUSB0 get dsn
+node cli/index.js -p ${uartport} get checksum
+node cli/index.js -p ${uartport} get ip
+node cli/index.js -p ${uartport} get mac
+node cli/index.js -p ${uartport} get dsn
 
 # 设置命令
-node cli/index.js -p /dev/ttyUSB0 set source hdmi1
-node cli/index.js -p /dev/ttyUSB0 set mac AA:BB:CC:DD:EE:FF
-node cli/index.js -p /dev/ttyUSB0 -t 10000 set dsn G5E3720050930018
+node cli/index.js -p ${uartport} set source hdmi1
+node cli/index.js -p ${uartport} set mac AA:BB:CC:DD:EE:FF
+node cli/index.js -p ${uartport} -t 10000 set dsn G5E3720050930018
 
 # 烧录 Key 文件
-node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./path/to/key.bin
-node cli/index.js -p /dev/ttyUSB0 burn hdcp22 ./path/to/key.bin
+node cli/index.js -p ${uartport} burn hdcp14 ./path/to/key.bin
+node cli/index.js -p ${uartport} burn hdcp22 ./path/to/key.bin
 
 # 测试命令
-node cli/index.js -p /dev/ttyUSB0 test wifi
-node cli/index.js -p /dev/ttyUSB0 test bluetooth
+node cli/index.js -p ${uartport} test wifi
+node cli/index.js -p ${uartport} test bluetooth
 
 # JSON 输出（用于脚本集成）
-node cli/index.js -p /dev/ttyUSB0 get ip --json
-node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --json
+node cli/index.js -p ${uartport} get ip --json
+node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --json
 
 # 调试模式（显示收发 HEX）
-node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --debug
+node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 ```
 
 ### CLI 命令列表
