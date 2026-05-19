@@ -176,6 +176,50 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Set DSN (customer serial number) with server-side response handling
+  socket.on('set-dsn', async (payload) => {
+    if (!activePort || !activePort.isOpen) {
+      socket.emit('set-dsn-result', { success: false, error: 'Port not open' });
+      return;
+    }
+
+    const { dsn } = payload;
+    if (!dsn || dsn.length === 0) {
+      socket.emit('set-dsn-result', { success: false, error: 'DSN cannot be empty' });
+      return;
+    }
+
+    const dsnBytes = [0x00, ...Array.from(dsn).map(c => c.charCodeAt(0))];
+    const packetLen = 6 + dsnBytes.length;
+    const pkt = [0xFF, 0x33, packetLen, 0x03, 0x5C, ...dsnBytes];
+    pkt.push(calculateChecksum(pkt.slice(2)));
+
+    try {
+      let buf = Buffer.alloc(0);
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { activePort.off('data', onData); reject(new Error('Timeout')); }, 10000);
+        const onData = (chunk) => {
+          buf = Buffer.concat([buf, chunk]);
+          if (buf.length >= 3 && buf.length >= buf[2]) {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            resolve(buf.slice(0, buf[2]));
+          }
+        };
+        activePort.on('data', onData);
+        activePort.write(Buffer.from(pkt));
+      });
+
+      if (result[4] === 0x01 && result[5] === 0x00) {
+        socket.emit('set-dsn-result', { success: true });
+      } else {
+        socket.emit('set-dsn-result', { success: false, error: `ACK error code: ${result[5]}` });
+      }
+    } catch (err) {
+      socket.emit('set-dsn-result', { success: false, error: err.message });
+    }
+  });
+
   // Burn key via file transfer protocol
   socket.on('burn-key', async (payload) => {
     if (!activePort || !activePort.isOpen) {
