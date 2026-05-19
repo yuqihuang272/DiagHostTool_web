@@ -13,6 +13,7 @@ import {
   parseSourceResponse,
   parseWifiResponse,
   parseBluetoothResponse,
+  parseDsnResponse,
   parseAckResponse,
 } from '../shared/cvteProtocol.js';
 
@@ -66,6 +67,13 @@ const COMMAND_MAP = {
       label: 'Bluetooth Status',
       resultKey: 'status',
     },
+    dsn: {
+      builder: CommandBuilder.getDsn,
+      parser: parseDsnResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_CUS_CODE,
+      label: 'DSN',
+      resultKey: 'dsn',
+    },
   },
   set: {
     source: {
@@ -92,6 +100,18 @@ const COMMAND_MAP = {
       parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_MAC_ADDR),
       expectedCmdId: null,
       label: 'MAC Address',
+      isSetCommand: true,
+    },
+    dsn: {
+      builder: (value) => {
+        if (!value || value.length === 0) {
+          throw new Error('DSN cannot be empty');
+        }
+        return CommandBuilder.setDsn(value);
+      },
+      parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_CUS_CODE),
+      expectedCmdId: null,
+      label: 'DSN',
       isSetCommand: true,
     },
   },

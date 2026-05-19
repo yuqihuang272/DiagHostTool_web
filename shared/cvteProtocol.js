@@ -23,6 +23,9 @@ export const PROTOCOL = {
     SET_MAC_ADDR: 0x0B,
     GET_MAC_ADDR: 0x0C,
     RET_MAC_ADDR: 0x0D,
+    SET_CUS_CODE: 0x5C,
+    GET_CUS_CODE: 0x5D,
+    RET_CUS_CODE: 0x5E,
     GET_CHECKSUM: 0x12,
     RET_CHECKSUM: 0x13,
     GET_SOURCE: 0x14,
@@ -346,6 +349,11 @@ export const CommandBuilder = {
     const bytes = macStr.split(/[:\-]/).map(s => parseInt(s, 16));
     return buildCommandHex(PROTOCOL.CMD.SET_MAC_ADDR, bytes);
   },
+  setDsn: (dsn) => {
+    const bytes = [0x00, ...Array.from(dsn).map(c => c.charCodeAt(0))];
+    return buildCommandHex(PROTOCOL.CMD.SET_CUS_CODE, bytes);
+  },
+  getDsn: () => buildCommandHex(PROTOCOL.CMD.GET_CUS_CODE),
   setAtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.ATV),
   setDtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.DTV),
   setHdmi1: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI1),
@@ -476,6 +484,22 @@ export const parseBluetoothResponse = (data) => {
   const statusCode = validation.payload[0];
   const status = STATUS_NAMES[statusCode] || `Unknown(${statusCode})`;
   return { success: true, status, statusCode };
+};
+
+/**
+ * Parse DSN/Customer code response (0x5E)
+ * Payload: [type=0x00] [ASCII string...]
+ */
+export const parseDsnResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_CUS_CODE);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const dsn = String.fromCharCode(...validation.payload.slice(1));
+  return { success: true, dsn };
 };
 
 /**
