@@ -23,8 +23,21 @@ export const MacBurnCard = ({ isConnected }) => {
     const command = CommandBuilder.setMac(mac);
     socket.emit('send-data', { data: command, type: 'hex' });
 
+    let buf = new Uint8Array(0);
+
     const handleResponse = (data) => {
-      const parsed = parseAckResponse(data, PROTOCOL.CMD.SET_MAC_ADDR);
+      const chunk = new Uint8Array(data);
+      const merged = new Uint8Array(buf.length + chunk.length);
+      merged.set(buf);
+      merged.set(chunk, buf.length);
+      buf = merged;
+
+      if (buf.length < 3) return;
+      const packetLen = buf[2];
+      if (buf.length < packetLen) return;
+
+      const packet = buf.slice(0, packetLen);
+      const parsed = parseAckResponse(packet, PROTOCOL.CMD.SET_MAC_ADDR);
       if (parsed.success) {
         setStatus('success');
         setMessage(`MAC ${mac} written successfully`);
