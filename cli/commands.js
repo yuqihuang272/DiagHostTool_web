@@ -77,8 +77,21 @@ const COMMAND_MAP = {
         return CommandBuilder.setSource(sourceId);
       },
       parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_SOURCE),
-      expectedCmdId: null, // ACK response
+      expectedCmdId: null,
       label: 'Source',
+      isSetCommand: true,
+    },
+    mac: {
+      builder: (value) => {
+        const parts = value.split(/[:\-]/);
+        if (parts.length !== 6 || parts.some(p => !/^[0-9a-fA-F]{2}$/.test(p))) {
+          throw new Error(`Invalid MAC: ${value}. Format: AA:BB:CC:DD:EE:FF`);
+        }
+        return CommandBuilder.setMac(value);
+      },
+      parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_MAC_ADDR),
+      expectedCmdId: null,
+      label: 'MAC Address',
       isSetCommand: true,
     },
   },

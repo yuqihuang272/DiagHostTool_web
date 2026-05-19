@@ -20,6 +20,7 @@ export const PROTOCOL = {
 
   // Command IDs
   CMD: {
+    SET_MAC_ADDR: 0x0B,
     GET_MAC_ADDR: 0x0C,
     RET_MAC_ADDR: 0x0D,
     GET_CHECKSUM: 0x12,
@@ -341,6 +342,10 @@ export const CommandBuilder = {
 
   // Set commands (with payload)
   setSource: (sourceId) => buildSetSourceCommand(sourceId),
+  setMac: (macStr) => {
+    const bytes = macStr.split(/[:\-]/).map(s => parseInt(s, 16));
+    return buildCommandHex(PROTOCOL.CMD.SET_MAC_ADDR, bytes);
+  },
   setAtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.ATV),
   setDtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.DTV),
   setHdmi1: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI1),

@@ -236,6 +236,8 @@ program
     console.log(chalk.cyan('Set commands:'));
     console.log('  set source <name>');
     console.log(chalk.gray('  Valid sources: atv, dtv, hdmi1, hdmi2, vga, av1, av2, usb1, usb2'));
+    console.log('  set mac <address>');
+    console.log(chalk.gray('  Format: AA:BB:CC:DD:EE:FF'));
     console.log();
 
     console.log(chalk.cyan('Test commands:'));
