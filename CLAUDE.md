@@ -167,6 +167,8 @@ node cli/index.js -p ${uartport} get checksum
 node cli/index.js -p ${uartport} get ip
 node cli/index.js -p ${uartport} get mac
 node cli/index.js -p ${uartport} get dsn
+node cli/index.js -p ${uartport} get hdcp14
+node cli/index.js -p ${uartport} get hdcp22
 
 # 设置命令
 node cli/index.js -p ${uartport} set source hdmi1
@@ -201,6 +203,8 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get wifi`           | 获取 WiFi 状态                                       |
 |      | `get bluetooth`      | 获取蓝牙状态                                           |
 |      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
+|      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
+|      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |
 | 设置命令 | `set source <name>`  | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
 |      | `set mac <addr>`     | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
 |      | `set dsn <serial>`   | 写入 DSN 序列号 (建议 -t 10000)                        |
