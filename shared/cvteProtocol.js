@@ -207,9 +207,8 @@ export const hexToPacket = (hexStr) => {
  * @returns {{valid: boolean, error?: string, packet?: object}}
  */
 export const validateResponse = (data, expectedCmdId = null) => {
-  // Handle Node.js Buffer and browser types
   let bytes;
-  if (Buffer.isBuffer(data)) {
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
     bytes = new Uint8Array(data);
   } else if (data instanceof ArrayBuffer) {
     bytes = new Uint8Array(data);
