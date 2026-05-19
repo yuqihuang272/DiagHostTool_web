@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { socket } from '../socket';
 import { CheckCircle, XCircle, Loader2, Send } from 'lucide-react';
-import { CommandBuilder, parseAckResponse, PROTOCOL } from '../utils/cvteProtocol';
 import { clsx } from 'clsx';
 
 export const MacBurnCard = ({ isConnected }) => {
@@ -20,44 +19,28 @@ export const MacBurnCard = ({ isConnected }) => {
     setStatus('pending');
     setMessage('Writing...');
 
-    const command = CommandBuilder.setMac(mac);
-    socket.emit('send-data', { data: command, type: 'hex' });
-
-    let buf = new Uint8Array(0);
-
-    const handleResponse = (data) => {
-      const chunk = new Uint8Array(data);
-      const merged = new Uint8Array(buf.length + chunk.length);
-      merged.set(buf);
-      merged.set(chunk, buf.length);
-      buf = merged;
-
-      if (buf.length < 3) return;
-      const packetLen = buf[2];
-      if (buf.length < packetLen) return;
-
-      const packet = buf.slice(0, packetLen);
-      const parsed = parseAckResponse(packet, PROTOCOL.CMD.SET_MAC_ADDR);
-      if (parsed.success) {
+    const onResult = (data) => {
+      cleanup();
+      if (data.success) {
         setStatus('success');
         setMessage(`MAC ${mac} written successfully`);
       } else {
         setStatus('error');
-        setMessage(parsed.error);
+        setMessage(data.error);
       }
-      cleanup();
     };
 
-    socket.on('serial-data', handleResponse);
+    socket.on('set-mac-result', onResult);
+    socket.emit('set-mac', { mac });
 
     const timer = setTimeout(() => {
       setStatus('error');
       setMessage('Timeout');
       cleanup();
-    }, 5000);
+    }, 8000);
 
     const cleanup = () => {
-      socket.off('serial-data', handleResponse);
+      socket.off('set-mac-result', onResult);
       clearTimeout(timer);
       cleanupRef.current = null;
     };

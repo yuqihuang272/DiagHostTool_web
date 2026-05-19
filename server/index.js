@@ -5,7 +5,7 @@ const { SerialPort } = require('serialport');
 const cors = require('cors');
 
 const path = require('path');
-const { fileCrc16, buildStartSendFile, buildSendFileData, buildSendFileCrc } = require('./burnProtocol.js');
+const { fileCrc16, calculateChecksum, buildStartSendFile, buildSendFileData, buildSendFileCrc } = require('./burnProtocol.js');
 
 const app = express();
 app.use(cors());
@@ -126,6 +126,53 @@ io.on('connection', (socket) => {
       });
     } else {
       socket.emit('error', "Port not open");
+    }
+  });
+
+  // Set MAC address with server-side response handling
+  socket.on('set-mac', async (payload) => {
+    if (!activePort || !activePort.isOpen) {
+      socket.emit('set-mac-result', { success: false, error: 'Port not open' });
+      return;
+    }
+
+    const { mac } = payload;
+    const parts = mac.split(/[:\-]/).map(s => parseInt(s, 16));
+    if (parts.length !== 6 || parts.some(v => isNaN(v))) {
+      socket.emit('set-mac-result', { success: false, error: 'Invalid MAC format' });
+      return;
+    }
+
+    const pkt = [0xFF, 0x33, 0x0C, 0x03, 0x0B, ...parts];
+    pkt.push(calculateChecksum(pkt.slice(2)));
+
+    try {
+      let buf = Buffer.alloc(0);
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          activePort.off('data', onData);
+          reject(new Error('Timeout'));
+        }, 5000);
+        const onData = (chunk) => {
+          buf = Buffer.concat([buf, chunk]);
+          if (buf.length >= 3 && buf.length >= buf[2]) {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            resolve(buf.slice(0, buf[2]));
+          }
+        };
+        activePort.on('data', onData);
+        activePort.write(Buffer.from(pkt));
+      });
+
+      // ACK: byte[4]=0x01, byte[5]=errorCode, byte[6]=ackedCmd
+      if (result[4] === 0x01 && result[5] === 0x00) {
+        socket.emit('set-mac-result', { success: true });
+      } else {
+        socket.emit('set-mac-result', { success: false, error: `ACK error code: ${result[5]}` });
+      }
+    } catch (err) {
+      socket.emit('set-mac-result', { success: false, error: err.message });
     }
   });
 

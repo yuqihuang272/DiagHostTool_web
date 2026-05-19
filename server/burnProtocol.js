@@ -59,4 +59,4 @@ function buildSendFileCrc(crcValue) {
   return packet;
 }
 
-module.exports = { fileCrc16, buildStartSendFile, buildSendFileData, buildSendFileCrc };
+module.exports = { fileCrc16, calculateChecksum, buildStartSendFile, buildSendFileData, buildSendFileCrc };
