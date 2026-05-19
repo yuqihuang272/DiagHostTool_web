@@ -64,7 +64,8 @@ comtest/
 │           ├── DeviceTestPage.jsx  # 设备测试页（含 Tab 导航）
 │           ├── SourceSelector.jsx
 │           ├── KeyBurnCard.jsx     # HDCP Key 烧录卡片
-│           └── MacBurnCard.jsx     # MAC 地址写入卡片
+│           ├── MacBurnCard.jsx     # MAC 地址写入卡片
+│           └── DsnCard.jsx         # DSN 序列号写入卡片
 └── package.json      # 根配置，管理 workspaces 和 concurrently 脚本
 ```
 
@@ -122,7 +123,7 @@ WebUI 和 CLI **各自独立调用串口**，通过 `shared/cvteProtocol.js` 共
 
 - **Terminal 页面** (`currentPage === 'terminal'`): 串口终端，日志查看 + 命令发送
 - **Device Test 页面** (`currentPage === 'device-test'`): 设备测试功能
-  - 信息查询: Checksum, IP, MAC, **写 MAC 地址**
+  - 信息查询: Checksum, IP, MAC, **写 MAC 地址**, **写 DSN 序列号**
   - 模块测试: WiFi, Bluetooth
   - 信源控制: 切换信源, 获取当前信源
   - **密钥烧录**: HDCP 1.4 / HDCP 2.2 Key 文件上传烧录
@@ -160,20 +161,18 @@ node cli/index.js list-ports
 
 # 获取设备信息
 node cli/index.js -p /dev/ttyUSB0 get checksum
-node cli/index.js -p COM3 get ip
+node cli/index.js -p /dev/ttyUSB0 get ip
 node cli/index.js -p /dev/ttyUSB0 get mac
+node cli/index.js -p /dev/ttyUSB0 get dsn
 
 # 设置命令
-node cli/index.js -p /dev/ttyUSB0 set source atv
-node cli/index.js -p COM3 set source hdmi1
-
-# 写入 MAC 地址
+node cli/index.js -p /dev/ttyUSB0 set source hdmi1
 node cli/index.js -p /dev/ttyUSB0 set mac AA:BB:CC:DD:EE:FF
+node cli/index.js -p /dev/ttyUSB0 -t 10000 set dsn G5E3720050930018
 
-# 烧录 Key 文件（HDCP 1.4 / HDCP 2.2）
+# 烧录 Key 文件
 node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./path/to/key.bin
 node cli/index.js -p /dev/ttyUSB0 burn hdcp22 ./path/to/key.bin
-node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --debug
 
 # 测试命令
 node cli/index.js -p /dev/ttyUSB0 test wifi
@@ -181,63 +180,31 @@ node cli/index.js -p /dev/ttyUSB0 test bluetooth
 
 # JSON 输出（用于脚本集成）
 node cli/index.js -p /dev/ttyUSB0 get ip --json
+node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --json
 
-# 全局选项
-node cli/index.js -p /dev/ttyUSB0 -b 115200 -t 5000 get checksum
-
-
-# 具体例子
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get checksum 
-✓ Checksum: 20260223_060853
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get ip       
-✓ IP Address: 0.0.0.0
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get mac
-✓ MAC Address: 8C:7A:B3:67:0B:B3
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 set source atv
-✗ Error: Unknown command: get set
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 set source atv 
-✓ source set to atv
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 set source hdmi1
-✓ source set to hdmi1
-huangyuqi@YuqideMacBook-Pro-1096 comtest % 
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 set source hdmi3
-✓ source set to hdmi3
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get ip            
-✓ IP Address: 0.0.0.0
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get ip --json
-{
-  "success": true,
-  "ip": "0.0.0.0"
-}
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 test wifi         
-✓ WiFi Test: Normal
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get wifi 
-✓ WiFi Status: Normal
-huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbserial-gggggggg1 get wifi --json
-{
-  "success": true,
-  "status": "Normal",
-  "statusCode": 0
-}
+# 调试模式（显示收发 HEX）
+node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --debug
 ```
 
 ### CLI 命令列表
 
-| 类别   | 命令                  | 说明                                               |
-| ---- | ------------------- | ------------------------------------------------ |
-| 端口管理 | `list-ports`        | 列出可用串口                                           |
-| 获取信息 | `get checksum`      | 获取固件校验码                                          |
-|      | `get ip`            | 获取 IP 地址                                         |
-|      | `get mac`           | 获取 MAC 地址                                        |
-|      | `get source`        | 获取当前信源                                           |
-|      | `get wifi`          | 获取 WiFi 状态                                       |
-|      | `get bluetooth`     | 获取蓝牙状态                                           |
-| 设置命令 | `set source <name>` | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
-|      | `set mac <addr>`    | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
+| 类别   | 命令                   | 说明                                               |
+| ---- | -------------------- | ------------------------------------------------ |
+| 端口管理 | `list-ports`         | 列出可用串口                                           |
+| 获取信息 | `get checksum`       | 获取固件校验码                                          |
+|      | `get ip`             | 获取 IP 地址                                         |
+|      | `get mac`            | 获取 MAC 地址                                        |
+|      | `get source`         | 获取当前信源                                           |
+|      | `get wifi`           | 获取 WiFi 状态                                       |
+|      | `get bluetooth`      | 获取蓝牙状态                                           |
+|      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
+| 设置命令 | `set source <name>`  | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
+|      | `set mac <addr>`     | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
+|      | `set dsn <serial>`   | 写入 DSN 序列号 (建议 -t 10000)                        |
 | 烧录命令 | `burn hdcp14 <file>` | 烧录 HDCP 1.4 Key 文件                              |
 |      | `burn hdcp22 <file>` | 烧录 HDCP 2.2 Key 文件                              |
-| 测试命令 | `test wifi`         | WiFi 测试                                          |
-|      | `test bluetooth`    | 蓝牙测试                                             |
+| 测试命令 | `test wifi`          | WiFi 测试                                          |
+|      | `test bluetooth`     | 蓝牙测试                                             |
 
 ### 全局选项
 
