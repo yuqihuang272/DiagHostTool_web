@@ -14,6 +14,7 @@ import {
   parseWifiResponse,
   parseBluetoothResponse,
   parseDsnResponse,
+  parseKeyIdResponse,
   parseAckResponse,
 } from '../shared/cvteProtocol.js';
 
@@ -73,6 +74,20 @@ const COMMAND_MAP = {
       expectedCmdId: PROTOCOL.CMD.RET_CUS_CODE,
       label: 'DSN',
       resultKey: 'dsn',
+    },
+    hdcp14: {
+      builder: () => CommandBuilder.getKeyId(1),
+      parser: parseKeyIdResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_FILE_ID,
+      label: 'HDCP 1.4 Key',
+      resultKey: 'keyName',
+    },
+    hdcp22: {
+      builder: () => CommandBuilder.getKeyId(4),
+      parser: parseKeyIdResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_FILE_ID,
+      label: 'HDCP 2.2 Key',
+      resultKey: 'keyName',
     },
   },
   set: {

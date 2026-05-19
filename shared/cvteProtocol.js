@@ -26,6 +26,8 @@ export const PROTOCOL = {
     SET_CUS_CODE: 0x5C,
     GET_CUS_CODE: 0x5D,
     RET_CUS_CODE: 0x5E,
+    GET_FILE_ID: 0x45,
+    RET_FILE_ID: 0x46,
     GET_CHECKSUM: 0x12,
     RET_CHECKSUM: 0x13,
     GET_SOURCE: 0x14,
@@ -354,6 +356,7 @@ export const CommandBuilder = {
     return buildCommandHex(PROTOCOL.CMD.SET_CUS_CODE, bytes);
   },
   getDsn: () => buildCommandHex(PROTOCOL.CMD.GET_CUS_CODE),
+  getKeyId: (keyType) => buildCommandHex(PROTOCOL.CMD.GET_FILE_ID, [keyType]),
   setAtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.ATV),
   setDtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.DTV),
   setHdmi1: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI1),
@@ -484,6 +487,25 @@ export const parseBluetoothResponse = (data) => {
   const statusCode = validation.payload[0];
   const status = STATUS_NAMES[statusCode] || `Unknown(${statusCode})`;
   return { success: true, status, statusCode };
+};
+
+/**
+ * Parse key ID (file ID) response (0x46)
+ * Payload: [FILE_ID 4bytes big-endian] [key_type]
+ * FILE_ID is the numeric key name (e.g., 579772666)
+ */
+export const parseKeyIdResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_FILE_ID);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const p = validation.payload;
+  const fileId = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
+  const keyName = fileId === 0 ? '' : fileId.toString();
+  return { success: true, keyName, fileId };
 };
 
 /**
