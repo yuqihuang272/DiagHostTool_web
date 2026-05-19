@@ -42,18 +42,29 @@ node cli/index.js -p /dev/ttyUSB0 get checksum
 ```
 comtest/
 ├── shared/           # 共享协议模块
-│   └── cvteProtocol.js   # CVTE 工厂测试协议（CLI 和 WebUI 共用）
+│   ├── cvteProtocol.js   # CVTE 工厂测试协议（CLI 和 WebUI 共用）
+│   └── fileTransfer.js   # 文件传输协议（Key 烧录、CRC16）
 ├── cli/              # 命令行工具
 │   ├── index.js          # CLI 入口
 │   ├── serialClient.js   # 串口通信封装
-│   └── commands.js       # 命令处理器
+│   ├── commands.js       # 命令处理器（get/set/test）
+│   └── burnCommand.js    # Key 烧录命令（HDCP 等）
 ├── server/           # Node.js 后端
-│   └── index.js      # Express + Socket.IO + SerialPort 主入口
+│   ├── index.js          # Express + Socket.IO + SerialPort 主入口
+│   └── burnProtocol.js   # 文件传输协议（CommonJS，server 专用）
 ├── client/           # React 前端 (Vite)
 │   └── src/
 │       ├── App.jsx           # 主应用组件
 │       ├── socket.js         # Socket.IO 客户端实例
-│       └── components/       # UI 组件 (Sidebar, LogViewer, CommandPanel)
+│       └── components/       # UI 组件
+│           ├── Sidebar.jsx
+│           ├── LogViewer.jsx
+│           ├── CommandPanel.jsx
+│           ├── CompactCommandCard.jsx
+│           ├── DeviceTestPage.jsx  # 设备测试页（含 Tab 导航）
+│           ├── SourceSelector.jsx
+│           ├── KeyBurnCard.jsx     # HDCP Key 烧录卡片
+│           └── MacBurnCard.jsx     # MAC 地址写入卡片
 └── package.json      # 根配置，管理 workspaces 和 concurrently 脚本
 ```
 
@@ -82,6 +93,12 @@ WebUI 和 CLI **各自独立调用串口**，通过 `shared/cvteProtocol.js` 共
 2. 在 `cli/commands.js` 的 `COMMAND_MAP` 中注册命令
 3. WebUI 如需使用，在 `DeviceTestPage.jsx` 中添加命令卡片
 
+### 添加新 Key 烧录类型
+
+1. 在 `shared/fileTransfer.js` 的 `FILE_TYPE` 和 `FILE_TYPE_NAMES` 中添加类型
+2. CLI 自动支持（`burn` 命令读取 `FILE_TYPE_NAMES`）
+3. WebUI: 在 `KeyBurnCard.jsx` 的 `KEY_TYPES` 数组中添加选项
+
 ## Socket.IO 事件协议
 
 | 方向              | 事件                            | 说明                                                        |
@@ -104,7 +121,11 @@ WebUI 和 CLI **各自独立调用串口**，通过 `shared/cvteProtocol.js` 共
 ## 页面结构
 
 - **Terminal 页面** (`currentPage === 'terminal'`): 串口终端，日志查看 + 命令发送
-- **Device Test 页面** (`currentPage === 'device-test'`): 设备测试功能，预定义命令卡片
+- **Device Test 页面** (`currentPage === 'device-test'`): 设备测试功能
+  - 信息查询: Checksum, IP, MAC, **写 MAC 地址**
+  - 模块测试: WiFi, Bluetooth
+  - 信源控制: 切换信源, 获取当前信源
+  - **密钥烧录**: HDCP 1.4 / HDCP 2.2 Key 文件上传烧录
 
 ## 设备通信协议
 
@@ -145,6 +166,14 @@ node cli/index.js -p /dev/ttyUSB0 get mac
 # 设置命令
 node cli/index.js -p /dev/ttyUSB0 set source atv
 node cli/index.js -p COM3 set source hdmi1
+
+# 写入 MAC 地址
+node cli/index.js -p /dev/ttyUSB0 set mac AA:BB:CC:DD:EE:FF
+
+# 烧录 Key 文件（HDCP 1.4 / HDCP 2.2）
+node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./path/to/key.bin
+node cli/index.js -p /dev/ttyUSB0 burn hdcp22 ./path/to/key.bin
+node cli/index.js -p /dev/ttyUSB0 burn hdcp14 ./key.bin --debug
 
 # 测试命令
 node cli/index.js -p /dev/ttyUSB0 test wifi
@@ -204,6 +233,9 @@ huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbser
 |      | `get wifi`          | 获取 WiFi 状态                                       |
 |      | `get bluetooth`     | 获取蓝牙状态                                           |
 | 设置命令 | `set source <name>` | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
+|      | `set mac <addr>`    | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
+| 烧录命令 | `burn hdcp14 <file>` | 烧录 HDCP 1.4 Key 文件                              |
+|      | `burn hdcp22 <file>` | 烧录 HDCP 2.2 Key 文件                              |
 | 测试命令 | `test wifi`         | WiFi 测试                                          |
 |      | `test bluetooth`    | 蓝牙测试                                             |
 
@@ -215,3 +247,4 @@ huangyuqi@YuqideMacBook-Pro-1096 comtest % node cli/index.js -p  /dev/tty.usbser
 | `-b, --baud <rate>`  | 波特率       | 115200 |
 | `-t, --timeout <ms>` | 响应超时      | 3000   |
 | `-j, --json`         | JSON 格式输出 | false  |
+| `--debug`            | 调试输出（显示收发 HEX） | false  |
