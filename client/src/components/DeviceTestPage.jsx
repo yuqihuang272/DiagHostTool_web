@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CompactCommandCard } from './CompactCommandCard';
 import { SourceSelector, GetCurrentSource } from './SourceSelector';
 import { KeyBurnCard } from './KeyBurnCard';
+import { MacBurnCard } from './MacBurnCard';
 import { Cpu, Info, TestTube, Tv, Key } from 'lucide-react';
 import { COMMANDS } from '../utils/cvteProtocol';
 import {
@@ -127,6 +128,7 @@ export const DeviceTestPage = ({ isConnected }) => {
                 isConnected={isConnected}
               />
             ))}
+            <MacBurnCard isConnected={isConnected} />
           </div>
         )}
 
