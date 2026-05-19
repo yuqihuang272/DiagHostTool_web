@@ -5,7 +5,7 @@ import { KeyBurnCard } from './KeyBurnCard';
 import { MacBurnCard } from './MacBurnCard';
 import { DsnCard } from './DsnCard';
 import { Cpu, Info, TestTube, Tv, Key } from 'lucide-react';
-import { COMMANDS } from '../utils/cvteProtocol';
+import { COMMANDS, CommandBuilder, parseKeyIdResponse as _parseKeyId } from '../utils/cvteProtocol';
 import {
   parseChecksumResponse,
   parseIpResponse,
@@ -27,6 +27,12 @@ import { clsx } from 'clsx';
  */
 export const DeviceTestPage = ({ isConnected }) => {
   const [activeTab, setActiveTab] = useState('info');
+
+  const parseKeyId = (data) => {
+    const r = _parseKeyId(data);
+    if (!r.success) return r;
+    return { success: true, display: r.keyName || '(empty)' };
+  };
 
   const tabs = [
     { id: 'info', label: 'Info Query', labelCN: '信息查询', icon: Info },
@@ -57,6 +63,20 @@ export const DeviceTestPage = ({ isConnected }) => {
       command: COMMANDS.GET_MAC_ADDR,
       timeout: 3000,
       parseResponse: parseMacResponse,
+    },
+    {
+      id: 'hdcp14',
+      title: 'HDCP 1.4 Key',
+      command: CommandBuilder.getKeyId(1),
+      timeout: 3000,
+      parseResponse: parseKeyId,
+    },
+    {
+      id: 'hdcp22',
+      title: 'HDCP 2.2 Key',
+      command: CommandBuilder.getKeyId(4),
+      timeout: 3000,
+      parseResponse: parseKeyId,
     },
   ];
 
