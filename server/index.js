@@ -22,9 +22,62 @@ const io = new Server(server, {
 });
 
 let activePort = null;
+let activeSocket = null;
+let burnAbortController = null;
+
+function bindPortToSocket(port, sock) {
+  port.removeAllListeners('data');
+  port.removeAllListeners('error');
+  port.removeAllListeners('close');
+
+  port.on('data', (data) => {
+    sock.emit('serial-data', data);
+  });
+  port.on('error', (err) => {
+    console.error('Serial port error:', err.message);
+    sock.emit('port-error', err.message);
+  });
+  port.on('close', () => {
+    console.log('Port closed');
+    sock.emit('port-closed');
+    activePort = null;
+  });
+}
+
+function closePortAsync() {
+  return new Promise((resolve) => {
+    if (activePort && activePort.isOpen) {
+      activePort.removeAllListeners('data');
+      activePort.removeAllListeners('error');
+      activePort.removeAllListeners('close');
+      activePort.close((err) => {
+        if (err) console.error('Error closing port:', err.message);
+        activePort = null;
+        resolve();
+      });
+    } else {
+      activePort = null;
+      resolve();
+    }
+  });
+}
 
 io.on('connection', (socket) => {
   console.log('Client connected');
+
+  // Abort any in-progress burn when a new client connects
+  if (burnAbortController) {
+    burnAbortController.abort();
+    burnAbortController = null;
+  }
+
+  activeSocket = socket;
+
+  // If port is already open from a previous session, rebind to new socket
+  if (activePort && activePort.isOpen) {
+    bindPortToSocket(activePort, socket);
+    socket.emit('port-opened', { path: activePort.path, baudRate: activePort.baudRate });
+  }
 
   // List available ports
   socket.on('list-ports', async () => {
@@ -37,10 +90,8 @@ io.on('connection', (socket) => {
   });
 
   // Open a port
-  socket.on('open-port', (config) => {
-    if (activePort && activePort.isOpen) {
-      activePort.close();
-    }
+  socket.on('open-port', async (config) => {
+    await closePortAsync();
 
     const { path, baudRate, dataBits, stopBits, parity, flowControl } = config;
 
@@ -49,7 +100,7 @@ io.on('connection', (socket) => {
         path,
         baudRate: parseInt(baudRate),
         dataBits: parseInt(dataBits),
-        stopBits: parseFloat(stopBits), // serialport expects number (1 or 2)
+        stopBits: parseFloat(stopBits),
         parity: parity.toLowerCase(),
         rtscts: flowControl === 'rtscts',
         xon: flowControl === 'xon',
@@ -64,23 +115,8 @@ io.on('connection', (socket) => {
           return;
         }
         console.log(`Port ${path} opened`);
+        bindPortToSocket(activePort, socket);
         socket.emit('port-opened', { path, baudRate });
-      });
-
-      activePort.on('data', (data) => {
-        // Emit raw buffer. Frontend can convert to Hex/ASCII
-        socket.emit('serial-data', data); 
-      });
-
-      activePort.on('error', (err) => {
-        console.error('Serial port error:', err.message);
-        socket.emit('port-error', err.message);
-      });
-
-      activePort.on('close', () => {
-        console.log('Port closed');
-        socket.emit('port-closed');
-        activePort = null;
       });
 
     } catch (err) {
@@ -90,11 +126,31 @@ io.on('connection', (socket) => {
   });
 
   // Close port
-  socket.on('close-port', () => {
-    if (activePort && activePort.isOpen) {
-      activePort.close((err) => {
-        if (err) socket.emit('error', err.message);
-      });
+  socket.on('close-port', async () => {
+    if (burnAbortController) {
+      burnAbortController.abort();
+      burnAbortController = null;
+    }
+    await closePortAsync();
+    socket.emit('port-closed');
+  });
+
+  // Reset port - force close and reopen
+  socket.on('reset-port', async () => {
+    console.log('Reset port requested');
+    if (burnAbortController) {
+      burnAbortController.abort();
+      burnAbortController = null;
+    }
+    const prevPath = activePort ? activePort.path : null;
+    const prevBaud = activePort ? activePort.baudRate : null;
+    await closePortAsync();
+    socket.emit('port-closed');
+
+    if (prevPath) {
+      // Small delay to let OS release the port
+      await new Promise(r => setTimeout(r, 300));
+      socket.emit('port-reset-ready', { path: prevPath, baudRate: prevBaud });
     }
   });
 
@@ -235,6 +291,12 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (burnAbortController) {
+      burnAbortController.abort();
+    }
+    const ac = new AbortController();
+    burnAbortController = ac;
+
     const fileBuf = Buffer.from(fileData);
     const fileSize = fileBuf.length;
     const crc = fileCrc16(fileBuf);
@@ -244,26 +306,31 @@ io.on('connection', (socket) => {
 
     const sendAndWait = (data, timeout = 10000) => {
       return new Promise((resolve, reject) => {
+        if (ac.signal.aborted) return reject(new Error('Aborted'));
+        if (!activePort || !activePort.isOpen) return reject(new Error('Port closed'));
+
         let buf = Buffer.alloc(0);
-        const timer = setTimeout(() => {
-          activePort.off('data', onData);
-          reject(new Error('Timeout'));
-        }, timeout);
+        const timer = setTimeout(() => { cleanup(); reject(new Error('Timeout')); }, timeout);
+        const onAbort = () => { cleanup(); reject(new Error('Aborted')); };
         const onData = (chunk) => {
           buf = Buffer.concat([buf, chunk]);
           if (buf.length >= 3 && buf.length >= buf[2]) {
-            clearTimeout(timer);
-            activePort.off('data', onData);
+            cleanup();
             resolve(buf.slice(0, buf[2]));
           }
         };
+        const cleanup = () => {
+          clearTimeout(timer);
+          activePort.off('data', onData);
+          ac.signal.removeEventListener('abort', onAbort);
+        };
+        ac.signal.addEventListener('abort', onAbort);
         activePort.on('data', onData);
         activePort.write(Buffer.from(data));
       });
     };
 
     try {
-      // Step 1: START_SEND_FILE
       const startCmd = buildStartSendFile(fileId, fileSize, fileType);
       const startResp = await sendAndWait(startCmd);
       if (startResp[4] !== 0x41) {
@@ -280,7 +347,6 @@ io.on('connection', (socket) => {
 
       socket.emit('burn-progress', { percent: 5, message: `Sending ${totalPackets} packets...` });
 
-      // Step 2: Send data packets (1-based index)
       for (let i = 0; i < totalPackets; i++) {
         const offset = i * dataPerPacket;
         const chunk = fileBuf.slice(offset, offset + dataPerPacket);
@@ -294,22 +360,30 @@ io.on('connection', (socket) => {
         socket.emit('burn-progress', { percent: pct, message: `Packet ${i + 1}/${totalPackets}` });
       }
 
-      // Step 3: Send CRC and wait for final status
       socket.emit('burn-progress', { percent: 90, message: 'Verifying CRC...' });
       const crcCmd = buildSendFileCrc(crc);
 
       const waitForPacket = (timeout = 15000) => {
         return new Promise((resolve, reject) => {
+          if (ac.signal.aborted) return reject(new Error('Aborted'));
+          if (!activePort || !activePort.isOpen) return reject(new Error('Port closed'));
+
           let buf = Buffer.alloc(0);
-          const timer = setTimeout(() => { activePort.off('data', onData); reject(new Error('Timeout')); }, timeout);
+          const timer = setTimeout(() => { cleanup(); reject(new Error('Timeout')); }, timeout);
+          const onAbort = () => { cleanup(); reject(new Error('Aborted')); };
           const onData = (chunk) => {
             buf = Buffer.concat([buf, chunk]);
             if (buf.length >= 3 && buf.length >= buf[2]) {
-              clearTimeout(timer);
-              activePort.off('data', onData);
+              cleanup();
               resolve(buf.slice(0, buf[2]));
             }
           };
+          const cleanup = () => {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            ac.signal.removeEventListener('abort', onAbort);
+          };
+          ac.signal.addEventListener('abort', onAbort);
           activePort.on('data', onData);
         });
       };
@@ -334,7 +408,11 @@ io.on('connection', (socket) => {
         socket.emit('burn-result', { success: false, error: finalStatus === 1 ? 'CRC error' : 'Flash write error' });
       }
     } catch (err) {
-      socket.emit('burn-result', { success: false, error: err.message });
+      if (err.message !== 'Aborted') {
+        socket.emit('burn-result', { success: false, error: err.message });
+      }
+    } finally {
+      if (burnAbortController === ac) burnAbortController = null;
     }
   });
 
@@ -347,8 +425,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Graceful shutdown to release serial port lock
 const cleanup = () => {
+  if (burnAbortController) burnAbortController.abort();
   if (activePort && activePort.isOpen) {
     console.log('Closing port on exit...');
     activePort.close((err) => {

@@ -38,12 +38,37 @@ export const Sidebar = ({ isConnected, currentPage, onPageChange }) => {
     setConfig({ ...config, [e.target.name]: e.target.value });
   };
 
+  const [resetting, setResetting] = useState(false);
+
   const toggleConnection = () => {
     if (isConnected) {
       socket.emit('close-port');
     } else {
       socket.emit('open-port', config);
     }
+  };
+
+  const handleReset = () => {
+    setResetting(true);
+    const onReady = (info) => {
+      socket.off('port-reset-ready', onReady);
+      socket.off('port-closed', onClosed);
+      // Auto-reopen with previous config
+      setTimeout(() => {
+        socket.emit('open-port', { ...config, path: info.path, baudRate: String(info.baudRate) });
+        setResetting(false);
+      }, 200);
+    };
+    const onClosed = () => {
+      // If no port-reset-ready comes (port wasn't open), just finish
+      setTimeout(() => {
+        socket.off('port-reset-ready', onReady);
+        setResetting(false);
+      }, 1000);
+    };
+    socket.on('port-reset-ready', onReady);
+    socket.on('port-closed', onClosed);
+    socket.emit('reset-port');
   };
 
   return (
@@ -122,16 +147,31 @@ export const Sidebar = ({ isConnected, currentPage, onPageChange }) => {
         </div>
 
         {/* Connection Toggle Button */}
-        <div className="pt-4">
+        <div className="pt-4 space-y-2">
             <button
             onClick={toggleConnection}
+            disabled={resetting}
             className={clsx(
                 "w-full py-2.5 px-4 rounded text-white font-medium flex items-center justify-center gap-2 transition shadow-sm",
+                resetting ? "bg-gray-400 cursor-not-allowed" :
                 isConnected ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
             )}
             >
             <Power size={18} />
             {isConnected ? "关闭串口" : "打开串口"}
+            </button>
+            <button
+            onClick={handleReset}
+            disabled={resetting}
+            className={clsx(
+                "w-full py-2 px-4 rounded text-sm font-medium flex items-center justify-center gap-2 transition border",
+                resetting
+                  ? "bg-yellow-50 border-yellow-300 text-yellow-600 cursor-not-allowed"
+                  : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100"
+            )}
+            >
+            <RefreshCw size={14} className={resetting ? "animate-spin" : ""} />
+            {resetting ? "重置中..." : "重置串口"}
             </button>
         </div>
 
