@@ -115,7 +115,7 @@ export const CompactCommandCard = ({
           result.success === false ? "bg-red-50 text-red-600" :
           "bg-green-50 text-green-600"
         )}>
-          {result.display || result}
+          {result.display || result.error || JSON.stringify(result)}
         </div>
       )}
 

@@ -30,7 +30,7 @@ export const DeviceTestPage = ({ isConnected }) => {
 
   const parseKeyId = (data) => {
     const r = _parseKeyId(data);
-    if (!r.success) return r;
+    if (!r.success) return { success: false, display: r.error || 'Unknown error' };
     return { success: true, display: r.keyName || '(empty)' };
   };
 
