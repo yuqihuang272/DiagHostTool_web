@@ -28,6 +28,9 @@ npm run client
 # 构建前端到 client/dist
 npm run build
 
+# 构建发布包（构建前端 + 打包 server 到 release/）
+npm run release
+
 # 前端代码检查
 cd client && npm run lint
 
@@ -66,6 +69,11 @@ comtest/
 │           ├── KeyBurnCard.jsx     # HDCP Key 烧录卡片
 │           ├── MacBurnCard.jsx     # MAC 地址写入卡片
 │           └── DsnCard.jsx         # DSN 序列号写入卡片
+├── scripts/          # 构建发布脚本
+│   └── release.sh        # 一键构建发布包（build + 打包）
+├── 00_Docu/          # 测试数据与文档
+│   └── testcast/         # 测试用例数据（HDCP Key 文件等）
+├── CLAUDE.md         # Claude Code AI 编码助手指导文件
 └── package.json      # 根配置，管理 workspaces 和 concurrently 脚本
 ```
 
