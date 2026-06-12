@@ -349,3 +349,76 @@ export const PARSERS = {
   setSource: parseSetSourceResponse,
   generic: parseGenericResponse,
 };
+
+/**
+ * Parse Channel List response (0x4A)
+ * Payload: [totalCount (2 BE)][entryCount (1)]
+ * per entry: [id (8 BE)][nameLen (1)][name (UTF-8)]
+ */
+export const parseChannelListResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  if (responseCmdId !== PROTOCOL.CMD.RET_CH_LIST) {
+    return { success: false, display: `Unexpected response ID: 0x${responseCmdId.toString(16)}` };
+  }
+
+  if (payload.length < 3) {
+    return { success: false, display: 'Channel list payload too short' };
+  }
+
+  const totalCount = (payload[0] << 8) | payload[1];
+  const entryCount = payload[2];
+  const channels = [];
+  let offset = 3;
+
+  for (let i = 0; i < entryCount && offset + 9 <= payload.length; i++) {
+    let id = 0;
+    for (let j = 0; j < 8; j++) {
+      id = (id * 256) + payload[offset + j]; // JS safe for < 2^53
+    }
+    offset += 8;
+    const nameLen = payload[offset];
+    offset += 1;
+    const name = offset + nameLen <= payload.length
+      ? String.fromCharCode(...payload.slice(offset, offset + nameLen))
+      : '';
+    offset += nameLen;
+    channels.push({ id, name });
+  }
+
+  const summary = channels.length > 0
+    ? channels.map((ch, i) => `${i + 1}. ${ch.name} (ID:${ch.id})`).join('\n')
+    : '(no channels)';
+
+  return {
+    success: true,
+    display: `Channels: ${channels.length}/${totalCount}\n${summary}`,
+    raw: { totalCount, entryCount: channels.length, channels },
+  };
+};
+
+/**
+ * Parse Play Channel response (0x4B)
+ * Payload: [status (1)] — 0=OK, 2=FAILED
+ */
+export const parsePlayChannelResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  if (responseCmdId !== PROTOCOL.CMD.RET_PLAY_CH) {
+    return { success: false, display: `Unexpected response ID: 0x${responseCmdId.toString(16)}` };
+  }
+
+  const status = payload[0];
+  if (status === 0) {
+    return { success: true, display: '✓ Channel playing' };
+  }
+  return { success: false, display: '✗ Play failed' };
+};

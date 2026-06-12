@@ -33,6 +33,8 @@ export const PROTOCOL = {
     GET_SOURCE: 0x14,
     RET_SOURCE: 0x15,
     SET_SOURCE: 0x16,
+    SET_VOLUME: 0x17,
+    SET_CHANNEL_NUMBER: 0x19,
     GET_IP_INFO: 0x31,
     RET_IP_INFO: 0x32,
     GET_WIFI_STATUS: 0x33,
@@ -44,6 +46,10 @@ export const PROTOCOL = {
     SEND_FILE_DATA: 0x42,
     SEND_FILE_CRC: 0x43,
     ACK_FILE_STATUS: 0x44,
+    GET_CHANNEL_LIST: 0x48,
+    PLAY_CHANNEL: 0x49,
+    RET_CH_LIST: 0x4A,
+    RET_PLAY_CH: 0x4B,
     ACK: 0x01,
   },
 
@@ -346,6 +352,12 @@ export const CommandBuilder = {
 
   // Set commands (with payload)
   setSource: (sourceId) => buildSetSourceCommand(sourceId),
+  setVolume: (level) => buildCommandHex(PROTOCOL.CMD.SET_VOLUME, [level]),
+  setChannelNumber: (number) => {
+    const hi = (number >> 8) & 0xFF;
+    const lo = number & 0xFF;
+    return buildCommandHex(PROTOCOL.CMD.SET_CHANNEL_NUMBER, [hi, lo]);
+  },
   setMac: (macStr) => {
     const bytes = macStr.split(/[:\-]/).map(s => parseInt(s, 16));
     return buildCommandHex(PROTOCOL.CMD.SET_MAC_ADDR, bytes);
@@ -356,6 +368,14 @@ export const CommandBuilder = {
   },
   getDsn: () => buildCommandHex(PROTOCOL.CMD.GET_CUS_CODE),
   getKeyId: (keyType) => buildCommandHex(PROTOCOL.CMD.GET_FILE_ID, [keyType]),
+  getChannelList: () => buildCommandHex(PROTOCOL.CMD.GET_CHANNEL_LIST),
+  playChannel: (channelId) => {
+    const bytes = [];
+    for (let i = 7; i >= 0; i--) {
+      bytes.push(Number((BigInt(channelId) >> BigInt(i * 8)) & BigInt(0xFF)));
+    }
+    return buildCommandHex(PROTOCOL.CMD.PLAY_CHANNEL, bytes);
+  },
   setAtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.ATV),
   setDtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.DTV),
   setHdmi1: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI1),
@@ -544,4 +564,59 @@ export const parseAckResponse = (data, expectedCmdId = null) => {
     return { success: false, error: `Device returned error code: ${validation.ackError}` };
   }
   return { success: true };
+};
+
+/**
+ * Parse channel list response (0x4A)
+ * Payload: [totalCount (2 BE)][entryCount (1)]
+ * per entry: [id (8 BE)][nameLen (1)][name (UTF-8)]
+ */
+export const parseChannelListResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_CH_LIST);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const p = validation.payload;
+  if (p.length < 3) {
+    return { success: false, error: 'Channel list payload too short' };
+  }
+  const totalCount = (p[0] << 8) | p[1];
+  const entryCount = p[2];
+  const channels = [];
+  let offset = 3;
+  for (let i = 0; i < entryCount && offset + 9 <= p.length; i++) {
+    // Channel ID (8 bytes BE) — use BigInt for large IDs
+    let id = 0n;
+    for (let j = 0; j < 8; j++) {
+      id = (id << 8n) | BigInt(p[offset + j]);
+    }
+    offset += 8;
+    const nameLen = p[offset];
+    offset += 1;
+    const name = offset + nameLen <= p.length
+      ? String.fromCharCode(...p.slice(offset, offset + nameLen))
+      : '';
+    offset += nameLen;
+    channels.push({ id: Number(id), name });
+  }
+  return { success: true, totalCount, entryCount: channels.length, channels };
+};
+
+/**
+ * Parse play channel response (0x4B)
+ * Payload: [status (1)] — 0=OK, 2=FAILED
+ */
+export const parsePlayChannelResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_PLAY_CH);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const status = validation.payload[0];
+  return { success: status === 0, status, display: status === 0 ? 'OK' : 'Failed' };
 };

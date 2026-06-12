@@ -21,6 +21,10 @@ import {
 } from './commands.js';
 import { executeBurnCommand } from './burnCommand.js';
 import { FILE_TYPE_NAMES } from '../shared/fileTransfer.js';
+import {
+  CommandBuilder as _CB,
+  parsePlayChannelResponse,
+} from '../shared/cvteProtocol.js';
 
 const program = new Command();
 
@@ -221,6 +225,49 @@ program
     process.exit(result.success ? 0 : 1);
   });
 
+// play command — play channel by ID
+program
+  .command('play <channelId>')
+  .description('Play a channel by its channel ID')
+  .action(async (channelId) => {
+    const options = program.opts();
+
+    if (!options.port) {
+      console.error(chalk.red('Error: Serial port is required. Use -p or --port option.'));
+      process.exit(1);
+    }
+
+    const id = parseInt(channelId);
+    if (isNaN(id)) {
+      console.error(chalk.red('Error: Channel ID must be a number.'));
+      process.exit(1);
+    }
+
+    const client = new SerialClient(options.port, parseInt(options.baud));
+    try {
+      await client.connect();
+      const hexCommand = _CB.playChannel(id);
+      const response = await client.sendCommand(hexCommand, parseInt(options.timeout));
+      const parsed = parsePlayChannelResponse(response);
+
+      if (options.json) {
+        console.log(JSON.stringify({ success: parsed.success, ...parsed }, null, 2));
+      } else {
+        if (parsed.success) {
+          console.log(`${chalk.green('✓')} Playing channel ${channelId}`);
+        } else {
+          console.log(`${chalk.red('✗')} Error: ${parsed.error || parsed.display}`);
+        }
+      }
+      process.exit(parsed.success ? 0 : 1);
+    } catch (err) {
+      console.error(chalk.red(`Error: ${err.message}`));
+      process.exit(1);
+    } finally {
+      await client.disconnect();
+    }
+  });
+
 // help command to show available commands
 program
   .command('commands')
@@ -236,8 +283,15 @@ program
     console.log(chalk.cyan('Set commands:'));
     console.log('  set source <name>');
     console.log(chalk.gray('  Valid sources: atv, dtv, hdmi1, hdmi2, vga, av1, av2, usb1, usb2'));
+    console.log('  set volume <0-100>');
+    console.log('  set channel <number>');
     console.log('  set mac <address>');
     console.log(chalk.gray('  Format: AA:BB:CC:DD:EE:FF'));
+    console.log();
+
+    console.log(chalk.cyan('Play commands:'));
+    console.log('  play <channelId>');
+    console.log(chalk.gray('  Play channel by ID (from get channels)'));
     console.log();
 
     console.log(chalk.cyan('Test commands:'));

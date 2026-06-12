@@ -4,15 +4,18 @@ import { SourceSelector, GetCurrentSource } from './SourceSelector';
 import { KeyBurnCard } from './KeyBurnCard';
 import { MacBurnCard } from './MacBurnCard';
 import { DsnCard } from './DsnCard';
-import { Cpu, Info, TestTube, Tv, Key } from 'lucide-react';
-import { COMMANDS, CommandBuilder, parseKeyIdResponse as _parseKeyId } from '../utils/cvteProtocol';
+import { ChannelPlayCard } from './ChannelCard';
+import { Cpu, Info, TestTube, Tv, Key, Volume2, Hash } from 'lucide-react';
+import { COMMANDS, CommandBuilder, parseKeyIdResponse as _parseKeyId, PROTOCOL } from '../utils/cvteProtocol';
 import {
   parseChecksumResponse,
   parseIpResponse,
   parseWifiResponse,
   parseBluetoothResponse,
   parseMacResponse,
+  parseChannelListResponse,
 } from '../utils/responseParsers';
+import { socket } from '../socket';
 import { clsx } from 'clsx';
 
 /**
@@ -38,6 +41,7 @@ export const DeviceTestPage = ({ isConnected }) => {
     { id: 'info', label: 'Info Query', labelCN: '信息查询', icon: Info },
     { id: 'test', label: 'Module Test', labelCN: '模块测试', icon: TestTube },
     { id: 'source', label: 'Source Control', labelCN: '信源控制', icon: Tv },
+    { id: 'channel', label: 'Channel', labelCN: '频道控制', icon: Hash },
     { id: 'burn', label: 'Key Burn', labelCN: '密钥烧录', icon: Key },
   ];
 
@@ -175,6 +179,16 @@ export const DeviceTestPage = ({ isConnected }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <SourceSelector isConnected={isConnected} />
             <GetCurrentSource isConnected={isConnected} />
+            <SetVolumeCard isConnected={isConnected} />
+          </div>
+        )}
+
+        {/* Channel Tab */}
+        {activeTab === 'channel' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <GetChannelListCard isConnected={isConnected} />
+            <ChannelPlayCard isConnected={isConnected} />
+            <SetChannelNumberCard isConnected={isConnected} />
           </div>
         )}
 
@@ -192,6 +206,216 @@ export const DeviceTestPage = ({ isConnected }) => {
         <span><strong>Baud:</strong> 115200</span>
         <span><strong>Format:</strong> 8N1</span>
       </div>
+    </div>
+  );
+};
+
+// ---- Inline Cards for Volume / Channel ----
+
+/**
+ * Volume set card
+ */
+const SetVolumeCard = ({ isConnected }) => {
+  const [volume, setVolume] = useState(50);
+  const [status, setStatus] = useState('idle');
+  const [result, setResult] = useState(null);
+
+  const handleSet = () => {
+    if (!isConnected) return;
+    setStatus('pending');
+    setResult(null);
+
+    const command = CommandBuilder.setVolume(volume);
+    socket.emit('send-data', { data: command, type: 'hex' });
+
+    const timer = setTimeout(() => {
+      setStatus('timeout');
+      setResult({ display: 'Timeout', success: false });
+      cleanup();
+    }, 3000);
+
+    const handleResponse = (data) => {
+      const bytes = new Uint8Array(data);
+      if (bytes.length < 7 || bytes[4] !== 0x01) return; // Wait for ACK
+      const errorCode = bytes[5];
+      if (errorCode === 0) {
+        setResult({ display: `✓ Volume set to ${volume}`, success: true });
+        setStatus('success');
+      } else {
+        setResult({ display: '✗ Failed', success: false });
+        setStatus('error');
+      }
+      cleanup();
+    };
+
+    socket.on('serial-data', handleResponse);
+    const cleanup = () => {
+      socket.off('serial-data', handleResponse);
+      clearTimeout(timer);
+    };
+  };
+
+  return (
+    <div className="bg-white rounded border border-gray-200 p-2 shadow-sm">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Volume2 size={14} className="text-gray-500" />
+        <h3 className="text-sm font-medium text-gray-700">Volume</h3>
+      </div>
+      <div className="flex gap-2 mb-2">
+        <input
+          type="range" min="0" max="100" value={volume}
+          onChange={(e) => setVolume(parseInt(e.target.value))}
+          disabled={!isConnected}
+          className="flex-1"
+        />
+        <span className="text-sm font-mono w-8 text-center">{volume}</span>
+      </div>
+      {result && (
+        <div className={"rounded px-2 py-1 mb-2 text-xs font-mono " + (result.success ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>
+          {result.display}
+        </div>
+      )}
+      <button
+        onClick={handleSet}
+        disabled={!isConnected || status === 'pending'}
+        className={"w-full py-1.5 px-3 rounded text-sm font-medium " + (isConnected && status !== 'pending' ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed")}
+      >
+        Set Volume
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Channel list query card
+ */
+const GetChannelListCard = ({ isConnected }) => {
+  const [status, setStatus] = useState('idle');
+  const [result, setResult] = useState(null);
+
+  const handleGet = () => {
+    if (!isConnected) return;
+    setStatus('pending');
+    setResult(null);
+
+    const command = CommandBuilder.getChannelList();
+    socket.emit('send-data', { data: command, type: 'hex' });
+
+    const timer = setTimeout(() => {
+      setStatus('timeout');
+      setResult({ display: 'Timeout', success: false });
+      cleanup();
+    }, 5000);
+
+    const handleResponse = (data) => {
+      const parsed = parseChannelListResponse(data);
+      setResult(parsed);
+      setStatus(parsed.success ? 'success' : 'error');
+      cleanup();
+    };
+
+    socket.on('serial-data', handleResponse);
+    const cleanup = () => {
+      socket.off('serial-data', handleResponse);
+      clearTimeout(timer);
+    };
+  };
+
+  return (
+    <div className="bg-white rounded border border-gray-200 p-2 shadow-sm">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Hash size={14} className="text-gray-500" />
+        <h3 className="text-sm font-medium text-gray-700">Channel List</h3>
+      </div>
+      {result && (
+        <div className={"rounded px-2 py-1 mb-2 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto " + (result.success ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>
+          {result.display}
+        </div>
+      )}
+      <button
+        onClick={handleGet}
+        disabled={!isConnected || status === 'pending'}
+        className={"w-full py-1.5 px-3 rounded text-sm font-medium " + (isConnected && status !== 'pending' ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed")}
+      >
+        Get Channels
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Channel number set card (0x19)
+ */
+const SetChannelNumberCard = ({ isConnected }) => {
+  const [channelNum, setChannelNum] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [result, setResult] = useState(null);
+
+  const handleSet = () => {
+    if (!isConnected || !channelNum) return;
+    const num = parseInt(channelNum);
+    if (isNaN(num) || num < 0) return;
+
+    setStatus('pending');
+    setResult(null);
+
+    const command = CommandBuilder.setChannelNumber(num);
+    socket.emit('send-data', { data: command, type: 'hex' });
+
+    const timer = setTimeout(() => {
+      setStatus('timeout');
+      setResult({ display: 'Timeout', success: false });
+      cleanup();
+    }, 3000);
+
+    const handleResponse = (data) => {
+      const bytes = new Uint8Array(data);
+      if (bytes.length < 7 || bytes[4] !== 0x01) return;
+      const errorCode = bytes[5];
+      if (errorCode === 0) {
+        setResult({ display: `✓ Channel set to ${channelNum}`, success: true });
+        setStatus('success');
+      } else {
+        setResult({ display: '✗ Failed', success: false });
+        setStatus('error');
+      }
+      cleanup();
+    };
+
+    socket.on('serial-data', handleResponse);
+    const cleanup = () => {
+      socket.off('serial-data', handleResponse);
+      clearTimeout(timer);
+    };
+  };
+
+  return (
+    <div className="bg-white rounded border border-gray-200 p-2 shadow-sm">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Hash size={14} className="text-gray-500" />
+        <h3 className="text-sm font-medium text-gray-700">Channel Number</h3>
+      </div>
+      <div className="flex gap-2 mb-2">
+        <input
+          type="number" value={channelNum}
+          onChange={(e) => setChannelNum(e.target.value)}
+          placeholder="Channel #"
+          disabled={!isConnected}
+          className={"flex-1 px-2 py-1.5 text-sm border rounded font-mono " + (isConnected ? "border-gray-300 focus:border-blue-500 focus:outline-none" : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed")}
+        />
+      </div>
+      {result && (
+        <div className={"rounded px-2 py-1 mb-2 text-xs font-mono " + (result.success ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600")}>
+          {result.display}
+        </div>
+      )}
+      <button
+        onClick={handleSet}
+        disabled={!isConnected || !channelNum || status === 'pending'}
+        className={"w-full py-1.5 px-3 rounded text-sm font-medium " + (isConnected && channelNum && status !== 'pending' ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed")}
+      >
+        Set Channel
+      </button>
     </div>
   );
 };

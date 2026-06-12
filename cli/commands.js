@@ -16,6 +16,8 @@ import {
   parseDsnResponse,
   parseKeyIdResponse,
   parseAckResponse,
+  parseChannelListResponse,
+  parsePlayChannelResponse,
 } from '../shared/cvteProtocol.js';
 
 import { SerialClient } from './serialClient.js';
@@ -89,6 +91,13 @@ const COMMAND_MAP = {
       label: 'HDCP 2.2 Key',
       resultKey: 'keyName',
     },
+    channels: {
+      builder: CommandBuilder.getChannelList,
+      parser: parseChannelListResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_CH_LIST,
+      label: 'Channel List',
+      resultKey: 'channels',
+    },
   },
   set: {
     source: {
@@ -102,6 +111,32 @@ const COMMAND_MAP = {
       parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_SOURCE),
       expectedCmdId: null,
       label: 'Source',
+      isSetCommand: true,
+    },
+    volume: {
+      builder: (value) => {
+        const level = parseInt(value);
+        if (isNaN(level) || level < 0 || level > 100) {
+          throw new Error('Volume must be 0-100');
+        }
+        return CommandBuilder.setVolume(level);
+      },
+      parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_VOLUME),
+      expectedCmdId: null,
+      label: 'Volume',
+      isSetCommand: true,
+    },
+    channel: {
+      builder: (value) => {
+        const num = parseInt(value);
+        if (isNaN(num) || num < 0) {
+          throw new Error('Channel number must be >= 0');
+        }
+        return CommandBuilder.setChannelNumber(num);
+      },
+      parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_CHANNEL_NUMBER),
+      expectedCmdId: null,
+      label: 'Channel Number',
       isSetCommand: true,
     },
     mac: {

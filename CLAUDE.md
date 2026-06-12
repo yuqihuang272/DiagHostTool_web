@@ -66,6 +66,7 @@ comtest/
 │           ├── CompactCommandCard.jsx
 │           ├── DeviceTestPage.jsx  # 设备测试页（含 Tab 导航）
 │           ├── SourceSelector.jsx
+│           ├── ChannelCard.jsx     # 频道播放卡片 (Play Channel)
 │           ├── KeyBurnCard.jsx     # HDCP Key 烧录卡片
 │           ├── MacBurnCard.jsx     # MAC 地址写入卡片
 │           └── DsnCard.jsx         # DSN 序列号写入卡片
@@ -133,7 +134,8 @@ WebUI 和 CLI **各自独立调用串口**，通过 `shared/cvteProtocol.js` 共
 - **Device Test 页面** (`currentPage === 'device-test'`): 设备测试功能
   - 信息查询: Checksum, IP, MAC, **写 MAC 地址**, **写 DSN 序列号**
   - 模块测试: WiFi, Bluetooth
-  - 信源控制: 切换信源, 获取当前信源
+  - 信源控制: 切换信源, 获取当前信源, **音量调节**
+  - **频道控制**: 频道列表查询, 播放频道, 设置频道号
   - **密钥烧录**: HDCP 1.4 / HDCP 2.2 Key 文件上传烧录
 
 ## 设备通信协议
@@ -213,9 +215,13 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
 |      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
 |      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |
+|      | `get channels`       | 获取频道列表                                           |
 | 设置命令 | `set source <name>`  | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
+|      | `set volume <0-100>` | 设置音量 (0-100)                                     |
+|      | `set channel <num>`  | 设置频道号                                            |
 |      | `set mac <addr>`     | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
 |      | `set dsn <serial>`   | 写入 DSN 序列号 (建议 -t 10000)                        |
+| 播放命令 | `play <channelId>`   | 按 Channel ID 播放频道                                |
 | 烧录命令 | `burn hdcp14 <file>` | 烧录 HDCP 1.4 Key 文件                              |
 |      | `burn hdcp22 <file>` | 烧录 HDCP 2.2 Key 文件                              |
 | 测试命令 | `test wifi`          | WiFi 测试                                          |
