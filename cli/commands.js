@@ -263,6 +263,11 @@ export function formatResult(result, config) {
   }
 
   const value = result[config.resultKey];
+  // Special formatting for channel list
+  if (Array.isArray(value)) {
+    const summary = value.map((ch, i) => `${i + 1}. ${ch.name} (ID:${ch.id})`).join('\n');
+    return `${config.label}: ${value.length}/${result.totalCount || value.length}\n${summary}`;
+  }
   return `${config.label}: ${value}`;
 }
 
