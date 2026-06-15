@@ -216,7 +216,7 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
 |      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |
 |      | `get channels`       | 获取频道列表                                           |
-| 设置命令 | `set source <name>`  | 切换信源 (atv/dtv/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
+| 设置命令 | `set source <name>`  | 切换信源 (atv/dtv/dvbs/hdmi1/hdmi2/vga/av1/av2/usb1/usb2) |
 |      | `set volume <0-100>` | 设置音量 (0-100)                                     |
 |      | `set channel <num>`  | 设置频道号                                            |
 |      | `set mac <addr>`     | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |

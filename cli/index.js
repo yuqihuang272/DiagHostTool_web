@@ -282,7 +282,7 @@ program
 
     console.log(chalk.cyan('Set commands:'));
     console.log('  set source <name>');
-    console.log(chalk.gray('  Valid sources: atv, dtv, hdmi1, hdmi2, vga, av1, av2, usb1, usb2'));
+    console.log(chalk.gray('  Valid sources: atv, dtv, dvbs, hdmi1, hdmi2, vga, av1, av2, usb1, usb2'));
     console.log('  set volume <0-100>');
     console.log('  set channel <number>');
     console.log('  set mac <address>');

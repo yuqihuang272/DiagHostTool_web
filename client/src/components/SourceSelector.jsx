@@ -22,6 +22,7 @@ export const SourceSelector = ({
   const sources = [
     { id: PROTOCOL.SOURCE.ATV, name: 'ATV', group: 'TV' },
     { id: PROTOCOL.SOURCE.DTV, name: 'DTV', group: 'TV' },
+    { id: PROTOCOL.SOURCE.DVBS, name: 'DVBS', group: 'TV' },
     { id: PROTOCOL.SOURCE.VGA, name: 'VGA', group: 'PC' },
     { id: PROTOCOL.SOURCE.HDMI1, name: 'HDMI1', group: 'HDMI' },
     { id: PROTOCOL.SOURCE.HDMI2, name: 'HDMI2', group: 'HDMI' },

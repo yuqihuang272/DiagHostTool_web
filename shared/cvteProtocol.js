@@ -378,6 +378,7 @@ export const CommandBuilder = {
   },
   setAtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.ATV),
   setDtv: () => buildSetSourceCommand(PROTOCOL.SOURCE.DTV),
+  setDvbs: () => buildSetSourceCommand(PROTOCOL.SOURCE.DVBS),
   setHdmi1: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI1),
   setHdmi2: () => buildSetSourceCommand(PROTOCOL.SOURCE.HDMI2),
 };
@@ -395,6 +396,7 @@ export const COMMANDS = {
   get GET_SOURCE() { return CommandBuilder.getSource(); },
   get SET_ATV() { return CommandBuilder.setAtv(); },
   get SET_DTV() { return CommandBuilder.setDtv(); },
+  get SET_DVBS() { return CommandBuilder.setDvbs(); },
   get SET_HDMI1() { return CommandBuilder.setHdmi1(); },
   get SET_HDMI2() { return CommandBuilder.setHdmi2(); },
 };
