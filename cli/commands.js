@@ -13,6 +13,7 @@ import {
   parseSourceResponse,
   parseWifiResponse,
   parseBluetoothResponse,
+  parseUsbNumberResponse,
   parseDsnResponse,
   parseKeyIdResponse,
   parseAckResponse,
@@ -69,6 +70,13 @@ const COMMAND_MAP = {
       expectedCmdId: PROTOCOL.CMD.RET_BLUETOOTH_STATUS,
       label: 'Bluetooth Status',
       resultKey: 'status',
+    },
+    usb: {
+      builder: CommandBuilder.getUsbNumber,
+      parser: parseUsbNumberResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_USB_NUMBER,
+      label: 'USB Count',
+      resultKey: 'count',
     },
     dsn: {
       builder: CommandBuilder.getDsn,

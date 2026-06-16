@@ -158,6 +158,38 @@ export const parseBluetoothResponse = (data) => {
 };
 
 /**
+ * Parse USB Number response (0x36)
+ *
+ * Payload: [count (1)] — number of mounted USB devices
+ *
+ * @param {ArrayBuffer} data - Raw response data
+ * @returns {ParseResult}
+ */
+export const parseUsbNumberResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  // Check if it's an ACK response
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  // Check response ID
+  if (responseCmdId !== PROTOCOL.CMD.RET_USB_NUMBER) {
+    return {
+      success: false,
+      display: `Unexpected response (expected 0x36, got 0x${responseCmdId.toString(16)}): ${formatHexPayload(bytes)}`,
+    };
+  }
+
+  const count = payload[0];
+  return {
+    success: true,
+    display: `USB Devices: ${count}`,
+    raw: { count },
+  };
+};
+
+/**
  * Parse MAC Address response (0x0D)
  *
  * @param {ArrayBuffer} data - Raw response data

@@ -79,7 +79,7 @@ program
 // get command
 program
   .command('get <item>')
-  .description('Get device info (checksum, ip, mac, source, wifi, bluetooth)')
+  .description('Get device info (checksum, ip, mac, source, wifi, bluetooth, usb, dsn)')
   .action(async (item) => {
     const options = program.opts();
 

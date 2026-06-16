@@ -212,6 +212,7 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get source`         | 获取当前信源                                           |
 |      | `get wifi`           | 获取 WiFi 状态                                       |
 |      | `get bluetooth`      | 获取蓝牙状态                                           |
+|      | `get usb`            | 获取已挂载 USB 设备数量                                |
 |      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
 |      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
 |      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |

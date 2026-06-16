@@ -39,6 +39,8 @@ export const PROTOCOL = {
     RET_IP_INFO: 0x32,
     GET_WIFI_STATUS: 0x33,
     RET_WIFI_STATUS: 0x34,
+    GET_USB_NUMBER: 0x35,
+    RET_USB_NUMBER: 0x36,
     CHECK_BLUETOOTH: 0x38,
     RET_BLUETOOTH_STATUS: 0x39,
     START_SEND_FILE: 0x40,
@@ -349,6 +351,7 @@ export const CommandBuilder = {
   getBluetoothStatus: () => buildCommandHex(PROTOCOL.CMD.CHECK_BLUETOOTH),
   getMacAddress: () => buildCommandHex(PROTOCOL.CMD.GET_MAC_ADDR),
   getSource: () => buildCommandHex(PROTOCOL.CMD.GET_SOURCE),
+  getUsbNumber: () => buildCommandHex(PROTOCOL.CMD.GET_USB_NUMBER),
 
   // Set commands (with payload)
   setSource: (sourceId) => buildSetSourceCommand(sourceId),
@@ -508,6 +511,24 @@ export const parseBluetoothResponse = (data) => {
   const statusCode = validation.payload[0];
   const status = STATUS_NAMES[statusCode] || `Unknown(${statusCode})`;
   return { success: true, status, statusCode };
+};
+
+/**
+ * Parse USB number response (0x36)
+ * Payload: [count (1)] — number of mounted USB devices
+ * @param {Buffer|Uint8Array} data - Raw response data
+ * @returns {{success: boolean, count?: number, error?: string}}
+ */
+export const parseUsbNumberResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_USB_NUMBER);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const count = validation.payload[0];
+  return { success: true, count };
 };
 
 /**

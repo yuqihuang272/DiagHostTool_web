@@ -5,7 +5,7 @@ import { KeyBurnCard } from './KeyBurnCard';
 import { MacBurnCard } from './MacBurnCard';
 import { DsnCard } from './DsnCard';
 import { ChannelPlayCard } from './ChannelCard';
-import { Cpu, Info, TestTube, Tv, Key, Volume2, Hash } from 'lucide-react';
+import { Cpu, Info, TestTube, Tv, Key, Volume2, Hash, Usb } from 'lucide-react';
 import { COMMANDS, CommandBuilder, parseKeyIdResponse as _parseKeyId, PROTOCOL } from '../utils/cvteProtocol';
 import {
   parseChecksumResponse,
@@ -14,6 +14,7 @@ import {
   parseBluetoothResponse,
   parseMacResponse,
   parseChannelListResponse,
+  parseUsbNumberResponse,
 } from '../utils/responseParsers';
 import { socket } from '../socket';
 import { clsx } from 'clsx';
@@ -67,6 +68,13 @@ export const DeviceTestPage = ({ isConnected }) => {
       command: COMMANDS.GET_MAC_ADDR,
       timeout: 3000,
       parseResponse: parseMacResponse,
+    },
+    {
+      id: 'usb',
+      title: 'USB Count',
+      command: CommandBuilder.getUsbNumber(),
+      timeout: 3000,
+      parseResponse: parseUsbNumberResponse,
     },
     {
       id: 'hdcp14',
