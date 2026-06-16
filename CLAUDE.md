@@ -132,7 +132,7 @@ WebUI 和 CLI **各自独立调用串口**，通过 `shared/cvteProtocol.js` 共
 
 - **Terminal 页面** (`currentPage === 'terminal'`): 串口终端，日志查看 + 命令发送
 - **Device Test 页面** (`currentPage === 'device-test'`): 设备测试功能
-  - 信息查询: Checksum, IP, MAC, **写 MAC 地址**, **写 DSN 序列号**
+  - 信息查询: Checksum, IP, MAC, USB 数量, **CPU 温度**, **有线网速**, **写 MAC 地址**, **写 DSN 序列号**
   - 模块测试: WiFi, Bluetooth
   - 信源控制: 切换信源, 获取当前信源, **音量调节**
   - **频道控制**: 频道列表查询, 播放频道, 设置频道号
@@ -177,6 +177,8 @@ node cli/index.js -p ${uartport} get checksum
 node cli/index.js -p ${uartport} get ip
 node cli/index.js -p ${uartport} get mac
 node cli/index.js -p ${uartport} get dsn
+node cli/index.js -p ${uartport} get cputemp
+node cli/index.js -p ${uartport} get ethspeed
 node cli/index.js -p ${uartport} get hdcp14
 node cli/index.js -p ${uartport} get hdcp22
 
@@ -213,6 +215,8 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get wifi`           | 获取 WiFi 状态                                       |
 |      | `get bluetooth`      | 获取蓝牙状态                                           |
 |      | `get usb`            | 获取已挂载 USB 设备数量                                |
+|      | `get cputemp`        | 获取老化过程最大 CPU 温度 (℃)                          |
+|      | `get ethspeed`       | 获取有线网口网络速率 (Mbps)                            |
 |      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
 |      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
 |      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |

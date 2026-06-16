@@ -15,6 +15,8 @@ import {
   parseMacResponse,
   parseChannelListResponse,
   parseUsbNumberResponse,
+  parseCpuTempResponse,
+  parseEthSpeedResponse,
   parseDsnResponse,
 } from '../utils/responseParsers';
 import { socket } from '../socket';
@@ -76,6 +78,20 @@ export const DeviceTestPage = ({ isConnected }) => {
       command: CommandBuilder.getUsbNumber(),
       timeout: 3000,
       parseResponse: parseUsbNumberResponse,
+    },
+    {
+      id: 'cpu-temp',
+      title: 'CPU Temperature',
+      command: CommandBuilder.getCpuTemp(),
+      timeout: 3000,
+      parseResponse: parseCpuTempResponse,
+    },
+    {
+      id: 'eth-speed',
+      title: 'Ethernet Speed',
+      command: CommandBuilder.getEthSpeed(),
+      timeout: 3000,
+      parseResponse: parseEthSpeedResponse,
     },
     {
       id: 'get-dsn',

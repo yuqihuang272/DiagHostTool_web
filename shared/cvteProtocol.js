@@ -43,6 +43,10 @@ export const PROTOCOL = {
     RET_USB_NUMBER: 0x36,
     CHECK_BLUETOOTH: 0x38,
     RET_BLUETOOTH_STATUS: 0x39,
+    GET_CPU_TEMP: 0x71,
+    RET_CPU_TEMP: 0x72,
+    GET_ETH_SPEED: 0xA0,
+    RET_ETH_SPEED: 0xA1,
     START_SEND_FILE: 0x40,
     RET_START_SEND_FILE: 0x41,
     SEND_FILE_DATA: 0x42,
@@ -352,6 +356,8 @@ export const CommandBuilder = {
   getMacAddress: () => buildCommandHex(PROTOCOL.CMD.GET_MAC_ADDR),
   getSource: () => buildCommandHex(PROTOCOL.CMD.GET_SOURCE),
   getUsbNumber: () => buildCommandHex(PROTOCOL.CMD.GET_USB_NUMBER),
+  getCpuTemp: () => buildCommandHex(PROTOCOL.CMD.GET_CPU_TEMP),
+  getEthSpeed: () => buildCommandHex(PROTOCOL.CMD.GET_ETH_SPEED),
 
   // Set commands (with payload)
   setSource: (sourceId) => buildSetSourceCommand(sourceId),
@@ -529,6 +535,48 @@ export const parseUsbNumberResponse = (data) => {
   }
   const count = validation.payload[0];
   return { success: true, count };
+};
+
+/**
+ * Parse CPU temperature response (0x72)
+ * Payload: [tempHi (1)][tempLo (1)] — 2-byte big-endian integer (degC)
+ * @param {Buffer|Uint8Array} data - Raw response data
+ * @returns {{success: boolean, temperature?: number, error?: string}}
+ */
+export const parseCpuTempResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_CPU_TEMP);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  if (validation.payload.length < 2) {
+    return { success: false, error: `CPU temp payload too short (${validation.payload.length} bytes)` };
+  }
+  const temperature = (validation.payload[0] << 8) | validation.payload[1];
+  return { success: true, temperature };
+};
+
+/**
+ * Parse Ethernet speed response (0xA1)
+ * Payload: [speedHi (1)][speedLo (1)] — 2-byte big-endian integer (Mbps)
+ * @param {Buffer|Uint8Array} data - Raw response data
+ * @returns {{success: boolean, speed?: number, error?: string}}
+ */
+export const parseEthSpeedResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_ETH_SPEED);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  if (validation.payload.length < 2) {
+    return { success: false, error: `ETH speed payload too short (${validation.payload.length} bytes)` };
+  }
+  const speed = (validation.payload[0] << 8) | validation.payload[1];
+  return { success: true, speed };
 };
 
 /**

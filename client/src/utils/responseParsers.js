@@ -190,6 +190,76 @@ export const parseUsbNumberResponse = (data) => {
 };
 
 /**
+ * Parse CPU Temperature response (0x72)
+ *
+ * Payload: [tempHi (1)][tempLo (1)] — 2-byte big-endian integer (degC),
+ * the maximum CPU temperature during aging.
+ *
+ * @param {ArrayBuffer} data - Raw response data
+ * @returns {ParseResult}
+ */
+export const parseCpuTempResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  if (responseCmdId !== PROTOCOL.CMD.RET_CPU_TEMP) {
+    return {
+      success: false,
+      display: `Unexpected response (expected 0x72, got 0x${responseCmdId.toString(16)}): ${formatHexPayload(bytes)}`,
+    };
+  }
+
+  if (payload.length < 2) {
+    return { success: false, display: `Error: CPU temp payload too short (${payload.length} bytes)` };
+  }
+
+  const temperature = (payload[0] << 8) | payload[1];
+  return {
+    success: true,
+    display: `CPU Temp: ${temperature} °C`,
+    raw: { temperature },
+  };
+};
+
+/**
+ * Parse Ethernet Speed response (0xA1)
+ *
+ * Payload: [speedHi (1)][speedLo (1)] — 2-byte big-endian integer (Mbps),
+ * the wired Ethernet link speed.
+ *
+ * @param {ArrayBuffer} data - Raw response data
+ * @returns {ParseResult}
+ */
+export const parseEthSpeedResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  if (responseCmdId !== PROTOCOL.CMD.RET_ETH_SPEED) {
+    return {
+      success: false,
+      display: `Unexpected response (expected 0xA1, got 0x${responseCmdId.toString(16)}): ${formatHexPayload(bytes)}`,
+    };
+  }
+
+  if (payload.length < 2) {
+    return { success: false, display: `Error: ETH speed payload too short (${payload.length} bytes)` };
+  }
+
+  const speed = (payload[0] << 8) | payload[1];
+  return {
+    success: true,
+    display: `Ethernet: ${speed} Mbps`,
+    raw: { speed },
+  };
+};
+
+/**
  * Parse MAC Address response (0x0D)
  *
  * @param {ArrayBuffer} data - Raw response data
