@@ -15,6 +15,7 @@ import {
   parseMacResponse,
   parseChannelListResponse,
   parseUsbNumberResponse,
+  parseDsnResponse,
 } from '../utils/responseParsers';
 import { socket } from '../socket';
 import { clsx } from 'clsx';
@@ -75,6 +76,13 @@ export const DeviceTestPage = ({ isConnected }) => {
       command: CommandBuilder.getUsbNumber(),
       timeout: 3000,
       parseResponse: parseUsbNumberResponse,
+    },
+    {
+      id: 'get-dsn',
+      title: 'Read DSN',
+      command: CommandBuilder.getDsn(),
+      timeout: 3000,
+      parseResponse: parseDsnResponse,
     },
     {
       id: 'hdcp14',

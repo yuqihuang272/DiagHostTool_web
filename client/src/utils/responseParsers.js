@@ -254,6 +254,39 @@ export const parseSourceResponse = (data) => {
 };
 
 /**
+ * Parse DSN/Customer code response (0x5E)
+ *
+ * Payload: [type=0x00] [ASCII string...]
+ *
+ * @param {ArrayBuffer} data - Raw response data
+ * @returns {ParseResult}
+ */
+export const parseDsnResponse = (data) => {
+  const { bytes, responseCmdId, payload } = parseBasicResponse(data);
+
+  // Check if it's an ACK response
+  if (responseCmdId === PROTOCOL.CMD.ACK) {
+    return parseAckResponse(data);
+  }
+
+  // Check response ID
+  if (responseCmdId !== PROTOCOL.CMD.RET_CUS_CODE) {
+    return {
+      success: false,
+      display: `Unexpected response (expected 0x5E, got 0x${responseCmdId.toString(16)}): ${formatHexPayload(bytes)}`,
+    };
+  }
+
+  // Payload format: [0x00] [ASCII DSN...]; empty DSN returns only [0x00]
+  const dsn = String.fromCharCode(...payload.slice(1));
+  return {
+    success: true,
+    display: `DSN: ${dsn || '(empty)'}`,
+    raw: { dsn },
+  };
+};
+
+/**
  * Parse ACK response (0x01)
  *
  * @param {ArrayBuffer} data - Raw response data
