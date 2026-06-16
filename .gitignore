@@ -32,3 +32,6 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# Test fixtures (binary key files, etc.)
+00_Docu/testcast/

@@ -63,7 +63,7 @@ function closePortAsync() {
 }
 
 io.on('connection', (socket) => {
-  console.log('Client connected');
+  console.log(`[SOCKET] Client connected: id=${socket.id}, origin=${socket.handshake.headers.origin || '?'}`);
 
   // Abort any in-progress burn when a new client connects
   if (burnAbortController) {

@@ -27,10 +27,18 @@ export const Sidebar = ({ isConnected, currentPage, onPageChange }) => {
       }
     });
 
-    refreshPorts();
+    // Request port list on connect (and immediately if already connected).
+    // Without this, list-ports may be emitted before the socket finishes
+    // its async handshake and the response is lost.
+    const requestPorts = () => refreshPorts();
+    if (socket.connected) {
+      requestPorts();
+    }
+    socket.on('connect', requestPorts);
 
     return () => {
       socket.off('ports-list');
+      socket.off('connect', requestPorts);
     };
   }, []);
 
