@@ -276,6 +276,80 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Set barcode (factory station pass, in-memory). No 0x00 prefix (unlike DSN).
+  socket.on('set-barcode', async (payload) => {
+    if (!activePort || !activePort.isOpen) {
+      socket.emit('set-barcode-result', { success: false, error: 'Port not open' });
+      return;
+    }
+    const { barcode } = payload;
+    if (!barcode || barcode.length === 0) {
+      socket.emit('set-barcode-result', { success: false, error: 'Barcode cannot be empty' });
+      return;
+    }
+    const bytes = Array.from(barcode).map(c => c.charCodeAt(0));
+    const packetLen = 6 + bytes.length;
+    const pkt = [0xFF, 0x33, packetLen, 0x03, 0x1F, ...bytes];
+    pkt.push(calculateChecksum(pkt.slice(2)));
+    try {
+      let buf = Buffer.alloc(0);
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { activePort.off('data', onData); reject(new Error('Timeout')); }, 10000);
+        const onData = (chunk) => {
+          buf = Buffer.concat([buf, chunk]);
+          if (buf.length >= 3 && buf.length >= buf[2]) {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            resolve(buf.slice(0, buf[2]));
+          }
+        };
+        activePort.on('data', onData);
+        activePort.write(Buffer.from(pkt));
+      });
+      if (result[4] === 0x01 && result[5] === 0x00) {
+        socket.emit('set-barcode-result', { success: true });
+      } else {
+        socket.emit('set-barcode-result', { success: false, error: `ACK error code: ${result[5]}` });
+      }
+    } catch (err) {
+      socket.emit('set-barcode-result', { success: false, error: err.message });
+    }
+  });
+
+  // Get barcode (returns RET_BARCODE 0x21)
+  socket.on('get-barcode', async () => {
+    if (!activePort || !activePort.isOpen) {
+      socket.emit('get-barcode-result', { success: false, error: 'Port not open' });
+      return;
+    }
+    const pkt = [0xFF, 0x33, 6, 0x03, 0x20];
+    pkt.push(calculateChecksum(pkt.slice(2)));
+    try {
+      let buf = Buffer.alloc(0);
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { activePort.off('data', onData); reject(new Error('Timeout')); }, 10000);
+        const onData = (chunk) => {
+          buf = Buffer.concat([buf, chunk]);
+          if (buf.length >= 3 && buf.length >= buf[2]) {
+            clearTimeout(timer);
+            activePort.off('data', onData);
+            resolve(buf.slice(0, buf[2]));
+          }
+        };
+        activePort.on('data', onData);
+        activePort.write(Buffer.from(pkt));
+      });
+      if (result[4] === 0x21) {
+        const barcode = result.slice(5, result.length - 1).toString('ascii');
+        socket.emit('get-barcode-result', { success: true, barcode });
+      } else {
+        socket.emit('get-barcode-result', { success: false, error: `Unexpected cmd: 0x${result[4].toString(16)}` });
+      }
+    } catch (err) {
+      socket.emit('get-barcode-result', { success: false, error: err.message });
+    }
+  });
+
   // Burn key via file transfer protocol
   socket.on('burn-key', async (payload) => {
     if (!activePort || !activePort.isOpen) {

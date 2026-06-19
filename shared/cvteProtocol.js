@@ -26,6 +26,9 @@ export const PROTOCOL = {
     SET_CUS_CODE: 0x5C,
     GET_CUS_CODE: 0x5D,
     RET_CUS_CODE: 0x5E,
+    SET_BARCODE: 0x1F,
+    GET_BARCODE: 0x20,
+    RET_BARCODE: 0x21,
     GET_FILE_ID: 0x45,
     RET_FILE_ID: 0x46,
     GET_CHECKSUM: 0x12,
@@ -376,6 +379,11 @@ export const CommandBuilder = {
     return buildCommandHex(PROTOCOL.CMD.SET_CUS_CODE, bytes);
   },
   getDsn: () => buildCommandHex(PROTOCOL.CMD.GET_CUS_CODE),
+  setBarcode: (barcode) => {
+    const bytes = Array.from(barcode).map(c => c.charCodeAt(0));
+    return buildCommandHex(PROTOCOL.CMD.SET_BARCODE, bytes);
+  },
+  getBarcode: () => buildCommandHex(PROTOCOL.CMD.GET_BARCODE),
   getKeyId: (keyType) => buildCommandHex(PROTOCOL.CMD.GET_FILE_ID, [keyType]),
   getChannelList: () => buildCommandHex(PROTOCOL.CMD.GET_CHANNEL_LIST),
   playChannel: (channelId) => {
@@ -612,6 +620,22 @@ export const parseDsnResponse = (data) => {
   }
   const dsn = String.fromCharCode(...validation.payload.slice(1));
   return { success: true, dsn };
+};
+
+/**
+ * Parse barcode response (0x21)
+ * Payload: [ASCII barcode bytes...] (no type byte, per CVTE spec)
+ */
+export const parseBarcodeResponse = (data) => {
+  const validation = validateResponse(data, PROTOCOL.CMD.RET_BARCODE);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+  if (validation.isAck && validation.ackError !== 0) {
+    return { success: false, error: `Device returned error code: ${validation.ackError}` };
+  }
+  const barcode = String.fromCharCode(...validation.payload);
+  return { success: true, barcode };
 };
 
 /**

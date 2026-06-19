@@ -17,6 +17,7 @@ import {
   parseCpuTempResponse,
   parseEthSpeedResponse,
   parseDsnResponse,
+  parseBarcodeResponse,
   parseKeyIdResponse,
   parseAckResponse,
   parseChannelListResponse,
@@ -100,6 +101,13 @@ const COMMAND_MAP = {
       expectedCmdId: PROTOCOL.CMD.RET_CUS_CODE,
       label: 'DSN',
       resultKey: 'dsn',
+    },
+    barcode: {
+      builder: CommandBuilder.getBarcode,
+      parser: parseBarcodeResponse,
+      expectedCmdId: PROTOCOL.CMD.RET_BARCODE,
+      label: 'Barcode',
+      resultKey: 'barcode',
     },
     hdcp14: {
       builder: () => CommandBuilder.getKeyId(1),
@@ -186,6 +194,18 @@ const COMMAND_MAP = {
       parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_CUS_CODE),
       expectedCmdId: null,
       label: 'DSN',
+      isSetCommand: true,
+    },
+    barcode: {
+      builder: (value) => {
+        if (!value || value.length === 0) {
+          throw new Error('Barcode cannot be empty');
+        }
+        return CommandBuilder.setBarcode(value);
+      },
+      parser: (data) => parseAckResponse(data, PROTOCOL.CMD.SET_BARCODE),
+      expectedCmdId: null,
+      label: 'Barcode',
       isSetCommand: true,
     },
   },

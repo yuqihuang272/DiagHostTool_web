@@ -181,11 +181,13 @@ node cli/index.js -p ${uartport} get cputemp
 node cli/index.js -p ${uartport} get ethspeed
 node cli/index.js -p ${uartport} get hdcp14
 node cli/index.js -p ${uartport} get hdcp22
+node cli/index.js -p ${uartport} get barcode
 
 # 设置命令
 node cli/index.js -p ${uartport} set source hdmi1
 node cli/index.js -p ${uartport} set mac AA:BB:CC:DD:EE:FF
 node cli/index.js -p ${uartport} -t 10000 set dsn G5E3720050930018
+node cli/index.js -p ${uartport} set barcode TEST001
 
 # 烧录 Key 文件
 node cli/index.js -p ${uartport} burn hdcp14 ./path/to/key.bin
@@ -218,6 +220,7 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `get cputemp`        | 获取老化过程最大 CPU 温度 (℃)                          |
 |      | `get ethspeed`       | 获取有线网口网络速率 (Mbps)                            |
 |      | `get dsn`            | 获取 DSN (Amazon 序列号)                              |
+|      | `get barcode`        | 获取 Barcode (内存,产线过站)                          |
 |      | `get hdcp14`         | 获取 HDCP 1.4 Key 名称                               |
 |      | `get hdcp22`         | 获取 HDCP 2.2 Key 名称                               |
 |      | `get channels`       | 获取频道列表                                           |
@@ -226,6 +229,7 @@ node cli/index.js -p ${uartport} burn hdcp14 ./key.bin --debug
 |      | `set channel <num>`  | 设置频道号                                            |
 |      | `set mac <addr>`     | 写入 MAC 地址 (格式: AA:BB:CC:DD:EE:FF)              |
 |      | `set dsn <serial>`   | 写入 DSN 序列号 (建议 -t 10000)                        |
+|      | `set barcode <code>` | 写入 Barcode (内存,产线过站)                           |
 | 播放命令 | `play <channelId>`   | 按 Channel ID 播放频道                                |
 | 烧录命令 | `burn hdcp14 <file>` | 烧录 HDCP 1.4 Key 文件                              |
 |      | `burn hdcp22 <file>` | 烧录 HDCP 2.2 Key 文件                              |

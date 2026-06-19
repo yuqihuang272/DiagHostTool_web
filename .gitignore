@@ -35,3 +35,6 @@ Thumbs.db
 
 # Test fixtures (binary key files, etc.)
 00_Docu/testcast/
+
+# commit message validation temp file
+.commit_check_tmp

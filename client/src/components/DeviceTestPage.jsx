@@ -4,6 +4,7 @@ import { SourceSelector, GetCurrentSource } from './SourceSelector';
 import { KeyBurnCard } from './KeyBurnCard';
 import { MacBurnCard } from './MacBurnCard';
 import { DsnCard } from './DsnCard';
+import { BarcodeCard } from './BarcodeCard';
 import { ChannelPlayCard } from './ChannelCard';
 import { Cpu, Info, TestTube, Tv, Key, Volume2, Hash, Usb } from 'lucide-react';
 import { COMMANDS, CommandBuilder, parseKeyIdResponse as _parseKeyId, PROTOCOL } from '../utils/cvteProtocol';
@@ -187,6 +188,7 @@ export const DeviceTestPage = ({ isConnected }) => {
             ))}
             <MacBurnCard isConnected={isConnected} />
             <DsnCard isConnected={isConnected} />
+            <BarcodeCard isConnected={isConnected} />
           </div>
         )}
 
